@@ -14,6 +14,7 @@ if (-not $gh) { Write-Host "gh CLI not found. Create $Repo on github.com, then: 
 gh repo view $Repo 1>$null 2>$null
 if ($LASTEXITCODE -ne 0) { gh repo create $Repo --$Visibility }
 if (-not (git remote | Select-String origin)) { git remote add origin "https://github.com/$Repo.git" }
+git pull --rebase origin main
 git push -u origin main
 if ($LASTEXITCODE -ne 0) { Write-Host "Push failed, see the git message above." -ForegroundColor Red; exit 1 }
 Write-Host "Pushed to https://github.com/$Repo" -ForegroundColor Green

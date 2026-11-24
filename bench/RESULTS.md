@@ -32,3 +32,14 @@ Observations
 
 Railway theme, `hard` preset: 3 to 6 waypoints per cable, waypoints anywhere in
 the field (cables that cross the whole board), deliberate loops, backtracking.
+
+| cables | crossings | self crossings | image |
+|---:|---:|---:|---|
+| 5 | 15 | 1 | 1600x900 |
+| 10 | 58 | 1 | 1600x900 |
+| 20 | 203 | 2 | 2496x1408 |
+| 40 | 665 | 6 | 3840x2160 |
+
+The 40-cable puzzle uses a wider port pitch (1.3 instead of 0.9), 2 to 4 waypoints
+and relaxed limits (22 deg, clearance 2.4 r, spacing 3.0 r); with the default
+pitch the router did not finish within 45 minutes on 2 CPU cores.

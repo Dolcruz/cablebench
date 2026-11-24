@@ -454,6 +454,9 @@ class Router:
             self.placed[i] = (wp, P)
             self.cross[i] = cr
             self._rebuild()
+            import os
+            if os.environ.get("CABLEBENCH_PROGRESS"):
+                print(f"[router] placed {len(self.placed)}/{n} backtracks={backtracks} iters={total}", flush=True)
         return total, backtracks
 
 
