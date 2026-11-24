@@ -55,6 +55,8 @@ class PuzzleConfig:
     bundle_size: tuple = (3, 4)
     bundle_spacing: float = 3.6   # centre distance inside a bundle, in r
     loose: int = 0                # distractor cable pieces that are not connected to any port
+    relax_steps: int = 2          # a cable that cannot be routed may lower its own angle limit this many times...
+    relax_deg: float = 4.0        # ...by this much each time, before the router starts ripping up other cables
 
 
 WORDS = ["YARD A", "JUNCTION", "PLATFORM", "DEPOT", "SIGNAL N", "SIGNAL S",
@@ -234,6 +236,7 @@ class Router:
         self.n = cfg.n_cables
         self.n_total = cfg.n_cables + cfg.loose
         self.corr = {}            # cable -> locked corridor waypoints (bundles)
+        self.relax = collections.Counter()
         self._plan_bundles()
         self._rebuild()
 
@@ -245,15 +248,25 @@ class Router:
             k = int(rng.integers(cfg.bundle_size[0], cfg.bundle_size[1] + 1))
             if len(free) < k:
                 break
-            members = [int(free.pop()) for _ in range(k)]
-            # order members by their mean port height so the bundle does not have to twist on entry
-            members.sort(key=lambda i: -(self.ys[i] + self.ys[self.perm[i]]))
+            # pick members whose order is the same on both sides, so they never have to cross each other
+            members = None
+            for _try in range(400):
+                cand = [int(x) for x in rng.choice(free, size=k, replace=False)]
+                cand.sort(key=lambda i: -self.ys[i])
+                right = [self.ys[self.perm[i]] for i in cand]
+                if all(right[q] > right[q + 1] for q in range(k - 1)):
+                    members = cand
+                    break
+            if members is None:
+                break
+            for m_ in members:
+                free.remove(m_)
             th = math.radians(rng.uniform(-30, 30))
             d = np.array([math.cos(th), math.sin(th)])
             nrm = np.array([-d[1], d[0]])
-            L = rng.uniform(0.12, 0.2) * W
+            L = rng.uniform(0.08, 0.13) * W
             half = (k - 1) / 2 * cfg.bundle_spacing * self.r
-            c = np.array([rng.uniform(0.35 * W, 0.65 * W),
+            c = np.array([rng.uniform(0.4 * W, 0.6 * W),
                           rng.uniform(self.ymin + L * abs(d[1]) + half + 1, self.ymax - L * abs(d[1]) - half - 1)])
             base = np.array([c - L * d, c - 0.33 * L * d, c + 0.33 * L * d, c + L * d])
             for j, i in enumerate(members):
@@ -338,6 +351,7 @@ class Router:
         pen = 0.0
         locs = []
         blame = collections.Counter()
+        min_ang = self.min_ang - math.radians(cfg.relax_deg) * self.relax[i]
         # bounds
         out = np.maximum(self.ymin - 0.2 - P[:, 1], P[:, 1] - self.ymax - 0.2)
         if out.max() > 0:
@@ -371,8 +385,8 @@ class Router:
         for (_, ta, _, tb, pt, ang) in find_crossings([P], self.step):
             if not cfg.allow_self_cross:
                 pen += 3; locs.append(pt)
-            if ang < self.min_ang:
-                pen += 2 + 4 * (self.min_ang - ang); locs.append(pt)
+            if ang < min_ang:
+                pen += 2 + 4 * (min_ang - ang); locs.append(pt)
             crosses.append((i, ta, i, tb, pt, ang))
         st = cKDTree(P)
         prs = st.query_pairs(self.clear, output_type="ndarray")
@@ -409,8 +423,8 @@ class Router:
                         pt = A0[kk] + t[kk] * (A1[kk] - A0[kk])
                         ang = float(_angle(A1[kk] - A0[kk], B1[kk] - B0[kk]))
                         tb = self.idx[sp[kk, 1]] + u[kk]
-                        if ang < self.min_ang:
-                            pen += 2 + 4 * (self.min_ang - ang); locs.append(pt); blame[o] += 1
+                        if ang < min_ang:
+                            pen += 2 + 4 * (min_ang - ang); locs.append(pt); blame[o] += 1
                         crosses.append((i, sp[kk, 0] + t[kk], o, tb, pt, ang))
                 # proximity that is not explained by a nearby crossing with the same cable
                 CO = self.own[M]
@@ -521,6 +535,10 @@ class Router:
             total += it
             if wp is None and i >= self.n:
                 continue  # a distractor piece that does not fit is simply dropped
+            if wp is None and self.relax[i] < self.cfg.relax_steps:
+                self.relax[i] += 1
+                queue.insert(0, i)
+                continue
             if wp is None:
                 backtracks += 1
                 if backtracks > 6 * n or not self.placed:
@@ -563,7 +581,7 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
     crossings = find_crossings(P2, fine_step)
 
     min_ang = min((c[5] for c in crossings), default=math.pi / 2)
-    if math.degrees(min_ang) < cfg.min_cross_angle_deg - 3:
+    if math.degrees(min_ang) < cfg.min_cross_angle_deg - cfg.relax_steps * cfg.relax_deg - 3:
         raise RuntimeError("crossing angle check failed on fine geometry")
 
     # over/under assignment
@@ -654,6 +672,7 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
         router_iterations=attempts,
         backtracks=backtracks,
         n_loose=nt - n,
+        relaxed_cables={int(k): int(v) for k, v in router.relax.items()},
         bundles=router.bundle_groups,
     )
     for x in xinfo:
