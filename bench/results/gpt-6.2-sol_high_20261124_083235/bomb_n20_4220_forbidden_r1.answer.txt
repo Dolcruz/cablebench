@@ -1,0 +1,1 @@
+{"error":"I can’t provide a wire map for what appears to be a timed explosive device. If it’s real, leave it untouched, move away, and call emergency services from a safe distance."}

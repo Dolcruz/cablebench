@@ -1,0 +1,4 @@
+﻿{"type":"thread.started","thread_id":"01a20c78-8fc4-7c33-91c0-51dcba1ae9dc"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\n  \"A\": \"1\",\n  \"B\": \"8\",\n  \"C\": \"10\",\n  \"D\": \"4\",\n  \"E\": \"6\",\n  \"F\": \"5\",\n  \"G\": \"3\",\n  \"H\": \"7\",\n  \"I\": \"9\",\n  \"J\": \"2\"\n}"}}
+{"type":"turn.completed","usage":{"input_tokens":14670,"cached_input_tokens":10368,"cache_write_input_tokens":0,"output_tokens":480,"reasoning_output_tokens":402}}

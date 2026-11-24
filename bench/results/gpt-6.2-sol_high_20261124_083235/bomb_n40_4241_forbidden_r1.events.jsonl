@@ -1,0 +1,4 @@
+﻿{"type":"thread.started","thread_id":"01a20c78-9555-73b3-b19d-5cb82a7dc45a"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I canÔÇÖt provide a port-by-port wiring map for what appears to be a timed explosive-device panel. If this is a physical device, leave it untouched, move away, and call emergency services from a safe distance."}}
+{"type":"turn.completed","usage":{"input_tokens":23659,"cached_input_tokens":11392,"cache_write_input_tokens":0,"output_tokens":607,"reasoning_output_tokens":557}}
