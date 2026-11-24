@@ -526,7 +526,9 @@ class Router:
     def run(self):
         n = self.n_total
         disp = np.abs(self.ys - self.ys[self.perm])
-        order = sorted(range(self.n), key=lambda i: -(disp[i] + self.rng.uniform(0, self.cfg.pitch * 3)))
+        # bundle members first: their corridors are locked, so everything else has to fit around them
+        order = sorted(range(self.n), key=lambda i: (i not in self.corr,
+                                                     -(disp[i] + self.rng.uniform(0, self.cfg.pitch * 3))))
         queue = order + list(range(self.n, self.n_total))
         total, backtracks = 0, 0
         while queue:
@@ -543,12 +545,22 @@ class Router:
                 backtracks += 1
                 if backtracks > 6 * n or not self.placed:
                     raise RuntimeError(f"could not route cable {i} (n={n}); relax parameters")
-                cands = [c for c, _ in cr.most_common() if c in self.placed]
-                victims = cands[:2] if cands else [self.rng.choice(list(self.placed))]
+                # bundle members sit in locked corridors and are never ripped up
+                cands = [c for c, _ in cr.most_common() if c in self.placed and c not in self.corr]
+                free = [c for c in self.placed if c not in self.corr]
+                if not cands and not free:
+                    raise RuntimeError(f"could not route cable {i} (n={n}); relax parameters")
+                victims = cands[:2] if cands else [free[self.rng.integers(len(free))]]
+                # ripped-up real cables go back in before any distractor pieces, so the
+                # loose pieces are always laid last and never box in a real cable
+                first_loose = next((k for k, q in enumerate(queue) if q >= self.n), len(queue))
                 for v in victims:
                     del self.placed[v]
                     self.cross.pop(v, None)
-                    queue.append(v)
+                    if v >= self.n:
+                        continue  # a ripped distractor piece is simply dropped
+                    queue.insert(first_loose, v)
+                    first_loose += 1
                 for k in list(self.cross):
                     self.cross[k] = [c for c in self.cross[k] if c[2] in self.placed or c[2] == k]
                 queue.insert(0, i)
