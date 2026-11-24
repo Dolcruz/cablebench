@@ -130,18 +130,20 @@ foreach ($it in $manifest) {
         for ($rep = 1; $rep -le $Repeats; $rep++) {
             $tag = "$($it.id)_$($md)_r$rep"
             # own CODEX_HOME per run (parallel sessions must not share one), same config as the mode
-            $h = Join-Path $run "home_$tag"
+            # neutral random names: nothing the model can see (cwd, image path, warnings) may contain the item id or seed
+            $rid = [guid]::NewGuid().ToString("N").Substring(0, 10)
+            $h = Join-Path $run "h_$rid"
             if (Test-Path $h) { Remove-Item $h -Recurse -Force }
             New-Item -ItemType Directory -Force -Path $h | Out-Null
             Copy-Item (Join-Path $homes[$md] "config.toml") (Join-Path $h "config.toml") -Force
             Copy-Item $mainAuth (Join-Path $h "auth.json") -Force
             # fresh, empty working folder per run, outside any git repo
-            $work = Join-Path $run "work_$tag"
+            $work = Join-Path $run "w_$rid"
             if (Test-Path $work) { Remove-Item $work -Recurse -Force }
             New-Item -ItemType Directory -Force -Path $work | Out-Null
-            $imgDir = Join-Path $run "img_$tag"
+            $imgDir = Join-Path $run "i_$rid"
             New-Item -ItemType Directory -Force -Path $imgDir | Out-Null
-            $img = Join-Path $imgDir $it.image
+            $img = Join-Path $imgDir "puzzle.png"
             Copy-Item (Join-Path $itemsDir $it.image) $img -Force
             if ($md -ne "toolless") { Copy-Item $img (Join-Path $work "puzzle.png") -Force }
             $jsonl = Join-Path $resDir "$tag.events.jsonl"

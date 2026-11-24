@@ -50,6 +50,7 @@ class PuzzleConfig:
     right_label_style: str = "numbers"
     iters_per_cable: int = 600
     seed: int = 0
+    seed_salt: int = 0            # non-zero: seed alone no longer reproduces the puzzle (keep it secret)
 
 
 WORDS = ["YARD A", "JUNCTION", "PLATFORM", "DEPOT", "SIGNAL N", "SIGNAL S",
@@ -461,7 +462,7 @@ class Router:
 
 
 def generate(cfg: PuzzleConfig) -> Puzzle:
-    rng = np.random.default_rng(cfg.seed)
+    rng = np.random.default_rng(cfg.seed if not cfg.seed_salt else [cfg.seed, cfg.seed_salt])
     n, r = cfg.n_cables, cfg.cable_radius
     H = (n - 1) * cfg.pitch
     W = max(H, 3 * cfg.pitch) * cfg.aspect + 2.0

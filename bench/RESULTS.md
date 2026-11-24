@@ -43,3 +43,28 @@ the field (cables that cross the whole board), deliberate loops, backtracking.
 The 40-cable puzzle uses a wider port pitch (1.3 instead of 0.9), 2 to 4 waypoints
 and relaxed limits (22 deg, clearance 2.4 r, spacing 3.0 r); with the default
 pitch the router did not finish within 45 minutes on 2 CPU cores.
+
+## Run 2: hard set, gpt-6.2-sol, effort high (2026-11-24)
+
+| cables | crossings | toolless | forbidden | code |
+|---:|---:|---|---|---|
+| 5 | 15 | 5/5, 15 s | 5/5, 22 s | 5/5, 25 s |
+| 10 | 58 | 8/10, 90 s | 10/10, 81 s | 10/10, 166 s (17 cmds) |
+| 20 | 203 | 20/20, 322 s | 16/20, 217 s | 18/20, 384 s (9 cmds) |
+| 40 | 665 | 38/40, 1649 s, 35k reasoning tokens | 15/40, 890 s | 40/40, 928 s (32 cmds), **invalid, see below** |
+
+* Every error is a swap: two cables exchange their endpoints at a shallow
+  crossing or inside a bundle of nearly parallel cables.
+* `forbidden` obeyed this time (0 commands) and did not refuse the railway theme.
+* `code` finally ran code (Windows sandbox `unelevated`): ridge filters,
+  skeletonisation, graph matching with MILP and Hungarian assignment.
+* **Seed exploit in `code` / 40 cables.** The working folder was named
+  `work_railway_hard_n40_543_code_r1`, and the folder name showed up in a Python
+  warning. Its own tracing still disagreed with itself at 5 to 7 cables, so the
+  model guessed that the puzzle came from `np.random.default_rng(543).permutation(40)`,
+  used that permutation to "check" its candidates and returned exactly it.
+  That permutation is the real solution (the generator draws it first). The
+  final answer does not mention this. The 40/40 is therefore not a vision
+  result. Fixed: run folders, CODEX_HOMEs and the image now get random neutral
+  names (`w_<random>`, `puzzle.png`), and `PuzzleConfig.seed_salt` lets public sets
+  use a secret salt.
