@@ -1,0 +1,21 @@
+﻿{"type":"thread.started","thread_id":"01a20eb7-b302-7172-a2d4-422805000ea6"}
+{"type":"turn.started"}
+node.exe : 2026-11-24T18:05:29.000156Z ERROR codex_models_manager::manager: failed to refresh available models: 
+request timed out
+In C:\Users\pfist\AppData\Roaming\npm\codex.ps1:22 Zeichen:14
++ ...    $input | & "node$exe"  "$basedir/node_modules/@openai/codex/bin/co ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-11-24T18:0...quest timed out:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+{"type":"error","message":"Reconnecting... 2/5 (request timed out)"}
+2026-11-24T18:09:27.864609Z ERROR codex_api::endpoint::responses_websocket: failed to connect to Responses WebSocket 
+stage=Unknown
+{"type":"error","message":"Reconnecting... 3/5 (stream disconnected before completion: Eine vorhandene Verbindung wurde vom Remotehost geschlossen. (os error 10054))"}
+{"type":"error","message":"Reconnecting... 4/5 (request timed out)"}
+{"type":"error","message":"Reconnecting... 5/5 (request timed out)"}
+2026-11-24T18:10:04.017371Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Falling back from WebSockets to HTTPS transport. request timed out"}}
+2026-11-24T18:14:39.041809Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\n  \"A\": \"2\",\n  \"B\": \"30\",\n  \"C\": \"24\",\n  \"D\": \"3\",\n  \"E\": \"18\",\n  \"F\": \"12\",\n  \"G\": \"40\",\n  \"H\": \"16\",\n  \"I\": \"31\",\n  \"J\": \"1\",\n  \"K\": \"17\",\n  \"L\": \"20\",\n  \"M\": \"41\",\n  \"N\": \"6\",\n  \"O\": \"19\",\n  \"P\": \"27\",\n  \"Q\": \"14\",\n  \"R\": \"45\",\n  \"S\": \"22\",\n  \"T\": \"26\",\n  \"U\": \"5\",\n  \"V\": \"21\",\n  \"W\": \"49\",\n  \"X\": \"15\",\n  \"Y\": \"23\",\n  \"Z\": \"47\",\n  \"AA\": \"7\",\n  \"AB\": \"46\",\n  \"AC\": \"11\",\n  \"AD\": \"44\",\n  \"AE\": \"13\",\n  \"AF\": \"32\",\n  \"AG\": \"37\",\n  \"AH\": \"35\",\n  \"AI\": \"25\",\n  \"AJ\": \"34\",\n  \"AK\": \"9\",\n  \"AL\": \"48\",\n  \"AM\": \"33\",\n  \"AN\": \"8\",\n  \"AO\": \"39\",\n  \"AP\": \"4\",\n  \"AQ\": \"50\",\n  \"AR\": \"42\",\n  \"AS\": \"29\",\n  \"AT\": \"10\",\n  \"AU\": \"38\",\n  \"AV\": \"43\",\n  \"AW\": \"36\",\n  \"AX\": \"28\"\n}"}}
+{"type":"turn.completed","usage":{"input_tokens":45954,"cached_input_tokens":23424,"cache_write_input_tokens":0,"output_tokens":8407,"reasoning_output_tokens":8049}}

@@ -1,0 +1,16 @@
+I could trace AC to 27 and AU to 32. The remaining paths were unresolved at cable crossings and are marked `null`.
+
+```json
+{
+  "A": null, "B": null, "C": null, "D": null, "E": null,
+  "F": null, "G": null, "H": null, "I": null, "J": null,
+  "K": null, "L": null, "M": null, "N": null, "O": null,
+  "P": null, "Q": null, "R": null, "S": null, "T": null,
+  "U": null, "V": null, "W": null, "X": null, "Y": null,
+  "Z": null, "AA": null, "AB": null, "AC": "27", "AD": null,
+  "AE": null, "AF": null, "AG": null, "AH": null, "AI": null,
+  "AJ": null, "AK": null, "AL": null, "AM": null, "AN": null,
+  "AO": null, "AP": null, "AQ": null, "AR": null, "AS": null,
+  "AT": null, "AU": "32", "AV": null, "AW": null, "AX": null
+}
+```

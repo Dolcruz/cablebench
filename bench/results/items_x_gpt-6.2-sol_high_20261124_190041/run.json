@@ -1,0 +1,12 @@
+﻿{
+    "started":  "20261124_203401",
+    "codex_version":  "codex-cli 0.171.0",
+    "model":  "gpt-6.2-sol",
+    "repeats":  1,
+    "modes":  [
+                  "toolless",
+                  "forbidden",
+                  "code"
+              ],
+    "effort":  "high"
+}

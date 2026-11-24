@@ -1,0 +1,21 @@
+﻿node.exe : 2026-11-24T18:01:12.037041Z ERROR codex_models_manager::manager: failed to refresh available models: 
+request timed out
+In C:\Users\pfist\AppData\Roaming\npm\codex.ps1:22 Zeichen:14
++ ...    $input | & "node$exe"  "$basedir/node_modules/@openai/codex/bin/co ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-11-24T18:0...quest timed out:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-11-24T18:01:12.129094Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+{"type":"thread.started","thread_id":"01a20eb7-f730-7e80-80c2-4ec053ac3a0f"}
+2026-11-24T18:01:17.169149Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+{"type":"turn.started"}
+{"type":"error","message":"Reconnecting... 2/5 (workspace routing discovery failed)"}
+{"type":"error","message":"Reconnecting... 3/5 (workspace routing discovery timed out)"}
+{"type":"error","message":"Reconnecting... 4/5 (workspace routing discovery timed out)"}
+{"type":"error","message":"Reconnecting... 5/5 (request timed out)"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Falling back from WebSockets to HTTPS transport. request timed out"}}
+2026-11-24T18:05:47.054190Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+2026-11-24T18:06:30.210263Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\n  \"A\": null,\n  \"B\": null,\n  \"C\": null,\n  \"D\": null,\n  \"E\": null,\n  \"F\": null,\n  \"G\": null,\n  \"H\": \"8\",\n  \"I\": null,\n  \"J\": null,\n  \"K\": null,\n  \"L\": \"3\",\n  \"M\": null,\n  \"N\": null,\n  \"O\": null,\n  \"P\": null,\n  \"Q\": null,\n  \"R\": null,\n  \"S\": null,\n  \"T\": null,\n  \"U\": null,\n  \"V\": null,\n  \"W\": null,\n  \"X\": null,\n  \"Y\": null,\n  \"Z\": null,\n  \"AA\": null,\n  \"AB\": null,\n  \"AC\": null,\n  \"AD\": null,\n  \"AE\": null,\n  \"AF\": null,\n  \"AG\": null,\n  \"AH\": null,\n  \"AI\": null,\n  \"AJ\": null,\n  \"AK\": null,\n  \"AL\": null,\n  \"AM\": null,\n  \"AN\": null,\n  \"AO\": null,\n  \"AP\": null,\n  \"AQ\": null,\n  \"AR\": null,\n  \"AS\": null,\n  \"AT\": null,\n  \"AU\": null,\n  \"AV\": null,\n  \"AW\": null,\n  \"AX\": null,\n  \"AY\": null,\n  \"AZ\": null,\n  \"BA\": null,\n  \"BB\": null,\n  \"BC\": null,\n  \"BD\": null,\n  \"BE\": null,\n  \"BF\": null,\n  \"BG\": null,\n  \"BH\": null,\n  \"BI\": null,\n  \"BJ\": null,\n  \"BK\": null,\n  \"BL\": null,\n  \"BM\": null,\n  \"BN\": null,\n  \"BO\": null,\n  \"BP\": null,\n  \"BQ\": null,\n  \"BR\": null,\n  \"BS\": null,\n  \"BT\": null,\n  \"BU\": null,\n  \"BV\": null,\n  \"BW\": null,\n  \"BX\": null,\n  \"BY\": null,\n  \"BZ\": null,\n  \"CA\": null,\n  \"CB\": null\n}"}}
+{"type":"turn.completed","usage":{"input_tokens":23471,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":6686,"reasoning_output_tokens":6196}}

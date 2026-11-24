@@ -18,9 +18,10 @@ param(
     [ValidateSet("all", "both", "toolless", "forbidden", "code")][string]$Mode = "all",
     [int]$Repeats = 1,
     [string]$Items = "",          # optional comma list of ids, default: all
-    [int]$TimeoutMin = 90,
+    [int]$TimeoutMin = 0,           # 0 = no time limit
     [string]$ItemsDir = "items",  # folder under bench\ with manifest.jsonl + images
-    [string]$WinSandbox = "unelevated"  # Windows sandbox for forbidden/code (elevated needs admin setup)
+    [string]$WinSandbox = "unelevated",  # Windows sandbox for forbidden/code (elevated needs admin setup)
+    [string]$ResumeDir = ""   # existing results folder: rerun only runs without an answer, then score all
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,7 +32,7 @@ $OutputEncoding = $utf8
 $itemsName = $ItemsDir
 $itemsDir = Join-Path $PSScriptRoot $itemsName
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$resDir = Join-Path $PSScriptRoot "results\$($itemsName)_$($Model)_$($Effort)_$stamp"
+$resDir = if ($ResumeDir) { (Resolve-Path $ResumeDir).Path } else { Join-Path $PSScriptRoot "results\$($itemsName)_$($Model)_$($Effort)_$stamp" }
 New-Item -ItemType Directory -Force -Path $resDir | Out-Null
 
 $mainHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }
@@ -42,6 +43,20 @@ if (Test-Path $mainCfg) {
     $m = Select-String -Path $mainCfg -Pattern '^\s*model\s*=' | Select-Object -First 1
     if ($m) { Write-Host "Your normal config uses: $($m.Line.Trim())  (this run uses model = $Model)" }
 }
+
+# Codex loads skills from ~/.agents/skills (and its own system skills) regardless of CODEX_HOME,
+# HOME/USERPROFILE overrides do not help. Only per-skill [[skills.config]] enabled=false hides them.
+$hostSkills = @()
+$hostSkillDir = Join-Path $env:USERPROFILE ".agents\skills"
+if (Test-Path $hostSkillDir) { $hostSkills = @(Get-ChildItem $hostSkillDir -Recurse -Filter SKILL.md | ForEach-Object { $_.FullName }) }
+$sysSkillNames = @("create-statusline", "imagegen", "openai-docs", "review-agent", "skill-creator", "skill-installer")
+$mainSys = Join-Path $mainHome "skills\.system"
+if (Test-Path $mainSys) { $sysSkillNames = @($sysSkillNames + @(Get-ChildItem $mainSys -Directory | ForEach-Object { $_.Name }) | Sort-Object -Unique) }
+function Get-SkillsOffToml([string]$homeDir) {
+    $paths = @($hostSkills) + @($sysSkillNames | ForEach-Object { Join-Path $homeDir "skills\.system\$_\SKILL.md" })
+    "`n" + (($paths | ForEach-Object { "[[skills.config]]`npath = '$_'`nenabled = false`n" }) -join "`n")
+}
+Write-Host "Skills disabled per run: $($hostSkills.Count) host + $($sysSkillNames.Count) system"
 
 # ---------------------------------------------------------------- isolated codex homes
 $run = "C:\cbrun"
@@ -129,6 +144,16 @@ foreach ($it in $manifest) {
     foreach ($md in $modes) {
         for ($rep = 1; $rep -le $Repeats; $rep++) {
             $tag = "$($it.id)_$($md)_r$rep"
+            if ($ResumeDir) {
+                $doneLast = Join-Path $resDir "$tag.answer.txt"
+                if ((Test-Path $doneLast) -and (Get-Item $doneLast).Length -gt 0) {
+                    $tasks += [pscustomobject]@{ it = $it; md = $md; rep = $rep; tag = $tag; job = $null; home = $null
+                                                 jsonl = (Join-Path $resDir "$tag.events.jsonl"); last = $doneLast
+                                                 timeFile = (Join-Path $resDir "$tag.seconds.txt") }
+                    Write-Host "kept $tag (already answered)"
+                    continue
+                }
+            }
             # own CODEX_HOME per run (parallel sessions must not share one), same config as the mode
             # neutral random names: nothing the model can see (cwd, image path, warnings) may contain the item id or seed
             $rid = [guid]::NewGuid().ToString("N").Substring(0, 10)
@@ -136,6 +161,7 @@ foreach ($it in $manifest) {
             if (Test-Path $h) { Remove-Item $h -Recurse -Force }
             New-Item -ItemType Directory -Force -Path $h | Out-Null
             Copy-Item (Join-Path $homes[$md] "config.toml") (Join-Path $h "config.toml") -Force
+            Add-Content -Encoding UTF8 -Path (Join-Path $h "config.toml") -Value (Get-SkillsOffToml $h)
             Copy-Item $mainAuth (Join-Path $h "auth.json") -Force
             # fresh, empty working folder per run, outside any git repo
             $work = Join-Path $run "w_$rid"
@@ -167,7 +193,7 @@ foreach ($it in $manifest) {
         }
     }
 }
-$homesAll = @($tasks | ForEach-Object { $_.home })
+$homesAll = @($tasks | Where-Object { $_.home } | ForEach-Object { $_.home })
 
 # ---------------------------------------------------------------- phase 2: wait, show progress
 $deadline = (Get-Date).AddMinutes($TimeoutMin)
@@ -178,7 +204,7 @@ while ($true) {
     Write-Host ("[{0:hh\:mm\:ss}] {1}/{2} finished, still running: {3}" -f ((Get-Date) - $t0), $finished, $tasks.Count,
         (($running | ForEach-Object { $_.tag }) -join ", "))
     if ($running.Count -eq 0) { break }
-    if ((Get-Date) -gt $deadline) {
+    if ($TimeoutMin -gt 0 -and (Get-Date) -gt $deadline) {
         foreach ($t in $running) { Stop-Job $t.job; Write-Host "TIMEOUT $($t.tag)" -ForegroundColor Red }
         break
     }
@@ -190,11 +216,14 @@ $summary = @()
 $preds = @()
 foreach ($t in $tasks) {
     $it = $t.it; $md = $t.md; $rep = $t.rep
-    $timedOut = $t.job.State -ne "Completed"
-    Receive-Job $t.job -ErrorAction SilentlyContinue | Out-Null
-    Remove-Job $t.job -Force
+    $timedOut = $false
+    if ($t.job) {
+        $timedOut = $t.job.State -ne "Completed"
+        Receive-Job $t.job -ErrorAction SilentlyContinue | Out-Null
+        Remove-Job $t.job -Force
+    }
     $secs = if (Test-Path $t.timeFile) { [double](Get-Content $t.timeFile) } else { $null }
-    $answerText = if (Test-Path $t.last) { Get-Content $t.last -Raw } else { "" }
+    $answerText = if (Test-Path $t.last) { "$(Get-Content $t.last -Raw)" } else { "" }
     $events = if (Test-Path $t.jsonl) { Get-Content $t.jsonl } else { @() }
     $cmdCount = ($events | Where-Object { $_ -match 'command_execution' -and $_ -match 'item\.completed' } | Measure-Object).Count
     $cmdRejected = ($events | Where-Object { $_ -match 'exec_command failed' } | Measure-Object).Count
