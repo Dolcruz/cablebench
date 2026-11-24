@@ -242,7 +242,13 @@ def occluder_ok(pz, ctx, parts, max_hidden_r=7.0, cross_margin_r=4.0):
     for poly, rad in [(p[1], p[2]) for p in parts]:
         if len(cross) and np.min(_capsule_dist(cross, poly)) < rad + cross_margin_r * r:
             return False, 0.0
-    for c in pz.cables:
+    loose = getattr(pz, "loose", []) or []
+    for c in loose:  # never hide the end of a distractor piece
+        E = np.array(c)[[0, -1], :2]
+        for poly, rad in [(p[1], p[2]) for p in parts]:
+            if np.min(_capsule_dist(E, poly)) < rad + 4 * r:
+                return False, 0.0
+    for c in list(pz.cables) + list(loose):
         P = np.array(c)[:, :2]
         s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
         hid = np.zeros(len(P), bool)

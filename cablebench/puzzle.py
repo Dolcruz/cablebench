@@ -51,6 +51,10 @@ class PuzzleConfig:
     iters_per_cable: int = 600
     seed: int = 0
     seed_salt: int = 0            # non-zero: seed alone no longer reproduces the puzzle (keep it secret)
+    bundles: int = 0              # groups of cables that run side by side through a shared corridor
+    bundle_size: tuple = (3, 4)
+    bundle_spacing: float = 3.6   # centre distance inside a bundle, in r
+    loose: int = 0                # distractor cable pieces that are not connected to any port
 
 
 WORDS = ["YARD A", "JUNCTION", "PLATFORM", "DEPOT", "SIGNAL N", "SIGNAL S",
@@ -200,6 +204,7 @@ class Puzzle:
     cables: list                  # list of (n,3) point lists, start at left port
     waypoints: list
     crossings: list = field(default_factory=list)
+    loose: list = field(default_factory=list)   # distractor pieces (3D point lists), not part of the answer
     stats: dict = field(default_factory=dict)
 
     def solution(self):
@@ -226,11 +231,47 @@ class Router:
         self.step = 0.6 * r
         self.placed = {}          # i -> (waypoints, coarse polyline)
         self.cross = {}           # i -> crossings recorded when i was placed
+        self.n = cfg.n_cables
+        self.n_total = cfg.n_cables + cfg.loose
+        self.corr = {}            # cable -> locked corridor waypoints (bundles)
+        self._plan_bundles()
         self._rebuild()
+
+    def _plan_bundles(self):
+        cfg, rng, W = self.cfg, self.rng, self.W
+        free = list(rng.permutation(self.n))
+        self.bundle_groups = []
+        for b in range(cfg.bundles):
+            k = int(rng.integers(cfg.bundle_size[0], cfg.bundle_size[1] + 1))
+            if len(free) < k:
+                break
+            members = [int(free.pop()) for _ in range(k)]
+            # order members by their mean port height so the bundle does not have to twist on entry
+            members.sort(key=lambda i: -(self.ys[i] + self.ys[self.perm[i]]))
+            th = math.radians(rng.uniform(-30, 30))
+            d = np.array([math.cos(th), math.sin(th)])
+            nrm = np.array([-d[1], d[0]])
+            L = rng.uniform(0.12, 0.2) * W
+            half = (k - 1) / 2 * cfg.bundle_spacing * self.r
+            c = np.array([rng.uniform(0.35 * W, 0.65 * W),
+                          rng.uniform(self.ymin + L * abs(d[1]) + half + 1, self.ymax - L * abs(d[1]) - half - 1)])
+            base = np.array([c - L * d, c - 0.33 * L * d, c + 0.33 * L * d, c + L * d])
+            for j, i in enumerate(members):
+                off = (j - (k - 1) / 2) * cfg.bundle_spacing * self.r
+                self.corr[i] = base + off * nrm
+            self.bundle_groups.append(members)
 
     # -- path construction ----------------------------------------------------
     def new_waypoints(self, i):
         cfg, rng, W = self.cfg, self.rng, self.W
+        if i >= self.n:  # loose distractor piece
+            L = rng.uniform(0.15, 0.35) * W
+            th = rng.uniform(0, 2 * math.pi)
+            d = np.array([math.cos(th), math.sin(th)])
+            c = np.array([rng.uniform(0.3 * W, 0.7 * W), rng.uniform(self.ymin + 1, self.ymax - 1)])
+            t = np.linspace(-0.5, 0.5, 4)[:, None]
+            nrm = np.array([-d[1], d[0]])
+            return c + t * L * d + rng.normal(0, 0.08 * L, (4, 1)) * nrm
         k = rng.integers(cfg.waypoints[0], cfg.waypoints[1] + 1)
         xs = np.sort(rng.uniform(0.16 * W, 0.84 * W, k))
         for j in range(k):
@@ -246,7 +287,7 @@ class Router:
         wy[wild] = rng.uniform(self.ymin, self.ymax, int(wild.sum()))
         wp = np.column_stack([xs, wy])
         # optional loop: control polygon that circles back over the incoming cable
-        if rng.random() < cfg.loop_prob:
+        if rng.random() < cfg.loop_prob and i not in self.corr:
             R = min(rng.uniform(cfg.loop_radius[0], cfg.loop_radius[1]) * cfg.pitch, 0.15 * W)
             s = rng.choice([-1.0, 1.0])
             x = rng.uniform(0.25 * W, 0.75 * W - 3 * R)
@@ -263,6 +304,14 @@ class Router:
 
     def path(self, i, wp, step):
         W, lead = self.W, self.lead
+        if i >= self.n:
+            return resample(bspline([tuple(p) for p in wp], 40), step)
+        if i in self.corr:
+            cor = self.corr[i]
+            m = 0.07 * W
+            wp = wp[(wp[:, 0] < cor[0, 0] - m) | (wp[:, 0] > cor[-1, 0] + m)] if len(wp) else wp
+            pos = int(np.sum(wp[:, 0] < cor[0, 0])) if len(wp) else 0
+            wp = np.vstack([wp[:pos], cor, wp[pos:]]) if len(wp) else cor
         y0, y1 = self.ys[i], self.ys[self.perm[i]]
         pts = [(0, y0), (lead * 0.7, y0), (lead * 1.4, y0), (lead * 2.4, y0)]
         pts += [tuple(p) for p in wp]
@@ -294,8 +343,22 @@ class Router:
         if out.max() > 0:
             pen += 5 + 10 * out.max(); locs.append(P[np.argmax(out)])
         s = arclen(P)
-        inner = (P[:, 0] > self.lead * 0.5) & (P[:, 0] < self.W - self.lead * 0.5)
-        bad = ~inner & (s > 3 * self.lead) & (s < s[-1] - 3 * self.lead)
+        if i >= self.n:
+            bad = (P[:, 0] < 2 * self.lead) | (P[:, 0] > self.W - 2 * self.lead)
+        else:
+            inner = (P[:, 0] > self.lead * 0.5) & (P[:, 0] < self.W - self.lead * 0.5)
+            bad = ~inner & (s > 3 * self.lead) & (s < s[-1] - 3 * self.lead)
+        # loose ends must lie in the open, clearly away from every other cable
+        ends = [v[1][[0, -1]] for c, v in self.placed.items() if c >= self.n]
+        if i >= self.n and self.tree is not None:
+            dd, _ = self.tree.query(P[[0, -1]])
+            if (dd < 5 * r).any():
+                pen += 3 * int((dd < 5 * r).sum()); locs.append(P[0] if dd[0] < 5 * r else P[-1])
+        if ends:
+            E = np.vstack(ends)
+            dd = np.min(np.linalg.norm(P[:, None, :] - E[None], axis=2), axis=0)
+            if (dd < 5 * r).any():
+                pen += 3 * int((dd < 5 * r).sum()); locs.append(E[int(np.argmin(dd))])
         if bad.any():
             pen += 5 + bad.sum() * 0.2; locs.append(P[np.argmax(bad)])
         # curvature
@@ -385,11 +448,28 @@ class Router:
         return pen, locs, blame, crosses
 
     # -- placement ------------------------------------------------------------
-    def mutate(self, wp, locs):
+    def mutate(self, wp, locs, P=None):
         rng, W, H = self.rng, self.W, self.H
         wp = wp.copy()
         u = rng.random()
-        if u < 0.08 and len(wp) < self.cfg.waypoints[1] + 1:
+        # targeted repair: drop a new control point right at a violation, pushed sideways,
+        # so the cable crosses there more steeply or steps away from a neighbour
+        if P is not None and locs and len(wp) < self.cfg.waypoints[1] + 6 and u > 0.55:
+            p = np.asarray(locs[rng.integers(len(locs))])
+            j = int(np.argmin(np.linalg.norm(P - p, axis=1)))
+            if 0 < j < len(P) - 1:
+                t = P[min(j + 3, len(P) - 1)] - P[max(j - 3, 0)]
+                t = t / (np.linalg.norm(t) + 1e-12)
+                nrm = np.array([-t[1], t[0]])
+                q = P[j] + nrm * rng.choice([-1, 1]) * rng.uniform(0.3, 1.2) * self.cfg.pitch + t * rng.normal(0, 0.3)
+                q[0] = np.clip(q[0], 0.14 * W, 0.86 * W); q[1] = np.clip(q[1], self.ymin, self.ymax)
+                if len(wp):
+                    wj = [int(np.argmin(np.linalg.norm(P - w, axis=1))) for w in wp]
+                    pos = int(np.sum(np.array(wj) < j))
+                else:
+                    pos = 0
+                return np.vstack([wp[:pos], [q], wp[pos:]])
+        if len(wp) == 0 or (u < 0.08 and len(wp) < self.cfg.waypoints[1] + 1):
             x = rng.uniform(0.16 * W, 0.84 * W)
             pos = int(np.sum(wp[:, 0] < x))
             return np.vstack([wp[:pos], [[x, rng.uniform(self.ymin, self.ymax)]], wp[pos:]])
@@ -416,7 +496,7 @@ class Router:
             stall = 0
             while it < iters and pen > 0 and stall < 120:
                 it += 1
-                wp2 = self.mutate(wp, locs)
+                wp2 = self.mutate(wp, locs, P)
                 P2 = self.path(i, wp2, self.step)
                 pen2, locs2, blame2, cr2 = self.evaluate(i, P2)
                 if pen2 <= pen:
@@ -430,13 +510,17 @@ class Router:
         return None, None, best_blame, it
 
     def run(self):
-        n = self.cfg.n_cables
-        queue = list(self.rng.permutation(n))
+        n = self.n_total
+        disp = np.abs(self.ys - self.ys[self.perm])
+        order = sorted(range(self.n), key=lambda i: -(disp[i] + self.rng.uniform(0, self.cfg.pitch * 3)))
+        queue = order + list(range(self.n, self.n_total))
         total, backtracks = 0, 0
         while queue:
             i = queue.pop(0)
             wp, P, cr, it = self.route(i)
             total += it
+            if wp is None and i >= self.n:
+                continue  # a distractor piece that does not fit is simply dropped
             if wp is None:
                 backtracks += 1
                 if backtracks > 6 * n or not self.placed:
@@ -472,7 +556,9 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
     attempts, backtracks = router.run()
 
     fine_step = 0.3 * r
-    P2 = [router.path(i, router.placed[i][0], fine_step) for i in range(n)]
+    ids = list(range(n)) + [i for i in range(n, router.n_total) if i in router.placed]
+    nt = len(ids)
+    P2 = [router.path(i, router.placed[i][0], fine_step) for i in ids]
     wps = [router.placed[i][0].tolist() for i in range(n)]
     crossings = find_crossings(P2, fine_step)
 
@@ -481,7 +567,7 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
         raise RuntimeError("crossing angle check failed on fine geometry")
 
     # over/under assignment
-    layer = rng.permutation(n)
+    layer = rng.permutation(nt)
     xinfo = []
     for (a, ta, b, tb, pt, ang) in crossings:
         if cfg.over_under == "layered" and a != b:
@@ -512,7 +598,7 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
             return z
 
         for _ in range(25):
-            Z = [heights(k) for k in range(n)]
+            Z = [heights(k) for k in range(nt)]
             bad = []
             for xid, x in enumerate(xinfo):
                 a, b = x["top"], x["bot"]
@@ -546,13 +632,14 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
     else:
         raise RuntimeError("over/under clearance could not be resolved")
     cables3 = [np.column_stack([P2[k], Z[k]]).tolist() for k in range(n)]
+    loose3 = [np.column_stack([P2[k], Z[k]]).tolist() for k in range(n, nt)]
 
     left_labels = make_labels(cfg.left_label_style, n, rng)
     right_labels = make_labels(cfg.right_label_style, n, rng)
     if cfg.shuffle_right_labels:
         right_labels = [right_labels[j] for j in rng.permutation(n)]
 
-    per_cable = [0] * n
+    per_cable = [0] * nt
     for x in xinfo:
         per_cable[x["top"]] += 1
         if x["bot"] != x["top"]:
@@ -566,6 +653,8 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
         max_lift=round(float(max(z.max() for z in Z) / r), 2),
         router_iterations=attempts,
         backtracks=backtracks,
+        n_loose=nt - n,
+        bundles=router.bundle_groups,
     )
     for x in xinfo:
         x["angle"] = round(math.degrees(x["angle"]), 1)
@@ -575,7 +664,7 @@ def generate(cfg: PuzzleConfig) -> Puzzle:
                   right_ports=[[float(W), float(y)] for y in ys],
                   left_labels=left_labels, right_labels=right_labels,
                   perm=[int(p) for p in perm], cables=cables3, waypoints=wps,
-                  crossings=xinfo, stats=stats)
+                  crossings=xinfo, stats=stats, loose=loose3)
 
 
 if __name__ == "__main__":

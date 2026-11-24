@@ -55,6 +55,13 @@ def build(pz, theme, rng, color_mode="uniform", res=(1600, 900), samples=48, ext
         P = np.array(c)
         P[:, 2] += theme.cable_z0
         bl.tube(f"cable_{i}", P, r * theme.radius_scale, ring=16, mat=mats[key])
+    for i, c in enumerate(getattr(pz, "loose", []) or []):
+        key = tuple(np.round(cols[i % n], 3))
+        if key not in mats:
+            mats[key] = theme.cable_material(cols[i % n], ctx)
+        P = np.array(c)
+        P[:, 2] += theme.cable_z0
+        bl.tube(f"loose_{i}", P, r * theme.radius_scale, ring=16, mat=mats[key])
     if extras:
         theme.extras(pz, ctx)
     cam = fit_camera(bounds, res, rng, **theme.camera_kw)
