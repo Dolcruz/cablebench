@@ -18,7 +18,9 @@ param(
     [ValidateSet("all", "both", "toolless", "forbidden", "code")][string]$Mode = "all",
     [int]$Repeats = 1,
     [string]$Items = "",          # optional comma list of ids, default: all
-    [int]$TimeoutMin = 90
+    [int]$TimeoutMin = 90,
+    [string]$ItemsDir = "items",  # folder under bench\ with manifest.jsonl + images
+    [string]$WinSandbox = "unelevated"  # Windows sandbox for forbidden/code (elevated needs admin setup)
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,9 +28,9 @@ $utf8 = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $utf8
 [Console]::OutputEncoding = $utf8
 
-$itemsDir = Join-Path $PSScriptRoot "items"
+$itemsDir = Join-Path $PSScriptRoot $ItemsDir
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$resDir = Join-Path $PSScriptRoot "results\$($Model)_$($Effort)_$stamp"
+$resDir = Join-Path $PSScriptRoot "results\$($ItemsDir)_$($Model)_$($Effort)_$stamp"
 New-Item -ItemType Directory -Force -Path $resDir | Out-Null
 
 $mainHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }
@@ -73,6 +75,9 @@ web_search = "disabled"
 
 [features]
 apps = false
+
+[windows]
+sandbox = "$WinSandbox"
 "@
     } else {
         $cfg = @"
@@ -84,6 +89,9 @@ web_search = "disabled"
 
 [features]
 apps = false
+
+[windows]
+sandbox = "$WinSandbox"
 "@
     }
     $cfg | Set-Content -Encoding UTF8 (Join-Path $h "config.toml")
@@ -186,6 +194,8 @@ foreach ($t in $tasks) {
     $answerText = if (Test-Path $t.last) { Get-Content $t.last -Raw } else { "" }
     $events = if (Test-Path $t.jsonl) { Get-Content $t.jsonl } else { @() }
     $cmdCount = ($events | Where-Object { $_ -match 'command_execution' -and $_ -match 'item\.completed' } | Measure-Object).Count
+    $cmdRejected = ($events | Where-Object { $_ -match 'exec_command failed' } | Measure-Object).Count
+    $refused = ($answerText -match "(?i)can.?t provide|cannot provide|can.?t help|won.?t provide|explosive")
     $inTok = $null; $outTok = $null; $reasonTok = $null
     foreach ($e in $events) {
         if ($e -match '"usage"') {
@@ -209,14 +219,14 @@ foreach ($t in $tasks) {
     $row = [ordered]@{
         id = $it.id; mode = $md; repeat = $rep; n_cables = $it.n_cables; n_crossings = $it.n_crossings
         correct = $ok; total = $total; accuracy = [math]::Round($ok / [math]::Max($total, 1), 3); exact = ($ok -eq $total)
-        seconds = $secs; timed_out = $timedOut; commands_run = $cmdCount
+        seconds = $secs; timed_out = $timedOut; commands_run = $cmdCount; commands_rejected = $cmdRejected; refused = $refused
         input_tokens = $inTok; output_tokens = $outTok; reasoning_tokens = $reasonTok
         wrong = ($wrong -join " ")
     }
     $summary += [pscustomobject]$row
     $preds += (@{ id = $it.id; mode = $md; repeat = $rep; answer = $answerText } | ConvertTo-Json -Compress)
     if ($md -eq "toolless" -and $cmdCount -gt 0) { Write-Host "WARNING: $($t.tag) ran commands although the shell tool was disabled" -ForegroundColor Yellow }
-    if ($md -eq "forbidden" -and $cmdCount -gt 0) { Write-Host "NOTE: $($t.tag) ran $cmdCount command(s) although the prompt forbade it" -ForegroundColor Yellow }
+    if ($md -eq "forbidden" -and ($cmdCount + $cmdRejected) -gt 0) { Write-Host "NOTE: $($t.tag) ran $cmdCount command(s) although the prompt forbade it" -ForegroundColor Yellow }
 }
 
 # auth may have been refreshed inside an isolated home: copy the newest one back so the main login stays valid
@@ -235,5 +245,5 @@ $summary | Export-Csv -NoTypeInformation -Encoding UTF8 (Join-Path $resDir "summ
 @{ model = $Model; effort = $Effort; modes = $modes; repeats = $Repeats; codex_version = $codexVersion; started = $stamp } |
     ConvertTo-Json | Set-Content -Encoding UTF8 (Join-Path $resDir "run.json")
 Write-Host ""
-$summary | Format-Table id, mode, correct, total, exact, seconds, commands_run, reasoning_tokens -AutoSize
+$summary | Format-Table id, mode, correct, total, exact, seconds, commands_run, commands_rejected, refused, reasoning_tokens -AutoSize
 Write-Host "Results: $resDir"

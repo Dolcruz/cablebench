@@ -42,7 +42,9 @@ occluders per seed.
 
 * `--n` number of cables (routing: 24 cables ~30 s; 40 cables needs relaxed limits, see bench/)
 * `--color-mode uniform|few|unique` (default `uniform`: all cables look the same)
-* `--waypoints 2,4` how wiggly cables are
+* `--preset normal|hard` (`hard`: 3 to 6 waypoints, waypoints anywhere on the board so
+  cables cross the whole field, deliberate loops, backtracking; routing is slower)
+* `--waypoints 2,4` how wiggly cables are (normal preset)
 * `--min-angle` smallest allowed crossing angle
 * `--no-extras` disables clips and occluders
 * `--res WxH|auto` (`auto` scales the image with n)

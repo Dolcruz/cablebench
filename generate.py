@@ -11,7 +11,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from cablebench.puzzle import PuzzleConfig            # noqa: E402
+from cablebench.puzzle import PuzzleConfig, PRESETS   # noqa: E402
 from cablebench.render import make_one, overlay        # noqa: E402
 from cablebench.themes import THEMES                   # noqa: E402
 
@@ -59,6 +59,8 @@ def main():
     ap.add_argument("--debug-overlay", action="store_true")
     ap.add_argument("--waypoints", default="2,4")
     ap.add_argument("--min-angle", type=float, default=25.0)
+    ap.add_argument("--preset", default="normal", choices=["normal", "hard"],
+                    help="hard: long traverses across the whole board, loops, backtracking")
     a = ap.parse_args()
 
     themes = list(THEMES) if a.themes == "all" else a.themes.split(",")
@@ -73,6 +75,8 @@ def main():
                 res = auto_res(n) if a.res == "auto" else tuple(int(v) for v in a.res.split("x"))
                 cfg = PuzzleConfig(n_cables=n, seed=seed, min_cross_angle_deg=a.min_angle,
                                    waypoints=tuple(int(v) for v in a.waypoints.split(",")))
+                for k_, v_ in PRESETS[a.preset].items():
+                    setattr(cfg, k_, v_)
                 name = f"{t}_n{n:02d}_{seed}"
                 t0 = time.time()
                 try:

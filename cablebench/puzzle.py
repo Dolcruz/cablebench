@@ -34,6 +34,9 @@ class PuzzleConfig:
     waypoints: tuple = (2, 4)     # random waypoints per cable (min, max)
     swing: float = 0.45           # waypoint y deviation from the straight line (fraction of H)
     max_swing_pitches: float = 6.0  # ...but at most this many port pitches
+    wild: float = 0.0             # chance a waypoint is placed anywhere in the field (long traverses)
+    loop_prob: float = 0.0        # chance a cable gets a deliberate loop around itself
+    loop_radius: tuple = (1.0, 1.8)  # loop size in port pitches
     backtrack_prob: float = 0.12  # chance a waypoint goes backwards in x (loops)
     allow_self_cross: bool = True
     min_cross_angle_deg: float = 25.0
@@ -237,7 +240,25 @@ class Router:
         swing = min(max(cfg.swing * self.H, 2.5 * cfg.pitch), cfg.max_swing_pitches * cfg.pitch)
         base = y0 + (y1 - y0) * (xs / W)
         wy = np.clip(base + rng.uniform(-swing, swing, k), self.ymin, self.ymax)
-        return np.column_stack([xs, wy])
+        # "wild" waypoints anywhere in the field: cables that cross the whole board
+        wild = rng.random(k) < cfg.wild
+        wy[wild] = rng.uniform(self.ymin, self.ymax, int(wild.sum()))
+        wp = np.column_stack([xs, wy])
+        # optional loop: control polygon that circles back over the incoming cable
+        if rng.random() < cfg.loop_prob:
+            R = min(rng.uniform(cfg.loop_radius[0], cfg.loop_radius[1]) * cfg.pitch, 0.15 * W)
+            s = rng.choice([-1.0, 1.0])
+            x = rng.uniform(0.25 * W, 0.75 * W - 3 * R)
+            yb = float(np.interp(x, np.concatenate([[0], xs, [W]]), np.concatenate([[y0], wy, [y1]])))
+            yb = float(np.clip(yb, self.ymin + 2 * R, self.ymax - 2 * R))
+            loop = np.array([(x, yb), (x + 1.5 * R, yb + 0.3 * R * s), (x + 1.2 * R, yb + 1.6 * R * s),
+                             (x - 0.3 * R, yb + 1.4 * R * s), (x - 0.25 * R, yb - 0.4 * R * s),
+                             (x + 2.6 * R, yb - 0.6 * R * s)])
+            keep = (wp[:, 0] < x - 0.6 * R) | (wp[:, 0] > x + 3.2 * R)
+            wp = wp[keep]
+            pos = int(np.sum(wp[:, 0] < x))
+            wp = np.vstack([wp[:pos], loop, wp[pos:]])
+        return wp
 
     def path(self, i, wp, step):
         W, lead = self.W, self.lead
@@ -369,8 +390,8 @@ class Router:
         u = rng.random()
         if u < 0.08 and len(wp) < self.cfg.waypoints[1] + 1:
             x = rng.uniform(0.16 * W, 0.84 * W)
-            wp = np.vstack([wp, [x, rng.uniform(self.ymin, self.ymax)]])
-            return wp[np.argsort(wp[:, 0])]
+            pos = int(np.sum(wp[:, 0] < x))
+            return np.vstack([wp[:pos], [[x, rng.uniform(self.ymin, self.ymax)]], wp[pos:]])
         if u < 0.14 and len(wp) > 1:
             return np.delete(wp, rng.integers(len(wp)), axis=0)
         if locs and rng.random() < 0.75:
@@ -561,3 +582,11 @@ if __name__ == "__main__":
     pz = generate(PuzzleConfig(n_cables=n, seed=seed))
     st = dict(pz.stats); st.pop("crossings_per_cable")
     print(n, json.dumps(st), f"{time.time() - t:.1f}s")
+
+
+# difficulty presets (override PuzzleConfig fields)
+PRESETS = {
+    "normal": {},
+    "hard": dict(waypoints=(3, 6), swing=1.0, max_swing_pitches=999.0, wild=0.35,
+                 backtrack_prob=0.2, loop_prob=0.35, aspect=1.6, iters_per_cable=1500),
+}

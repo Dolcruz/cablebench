@@ -265,9 +265,12 @@ def place_pliers(pz, ctx, handle_mat, metal_mat, scale=1.6, z=0.5, tries=80):
     W = ctx["W"]
     ys = [p[1] for p in pz.left_ports]
     for _ in range(tries):
-        c = (rng.uniform(-0.2, W * 0.9), float(rng.uniform(min(ys), max(ys))))
+        c = (rng.uniform(1.0, W - 1.0), float(rng.uniform(min(ys), max(ys))))
         ang = rng.uniform(-math.pi, math.pi)
         parts = pliers_geometry(c, ang, scale)
+        xs_all = [x for _, poly, _ in parts for x, _ in poly]
+        if min(xs_all) < 0.7 or max(xs_all) > W - 0.7:
+            continue  # keep labels, ports and connectors visible
         ok, hidden = occluder_ok(pz, ctx, parts)
         if ok and hidden > 0:
             for k, (kind, poly, rad) in enumerate(parts):
