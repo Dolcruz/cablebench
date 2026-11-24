@@ -1,0 +1,12 @@
+{
+  "YARD A": "2",
+  "JUNCTION": "7",
+  "PLATFORM": "10",
+  "DEPOT": "3",
+  "SIGNAL N": "8",
+  "SIGNAL S": "9",
+  "SIDING": "4",
+  "YARD B": "6",
+  "BRIDGE": "1",
+  "TUNNEL": "5"
+}

@@ -1,0 +1,7 @@
+{
+  "YARD A": "5",
+  "JUNCTION": "3",
+  "PLATFORM": "4",
+  "DEPOT": "1",
+  "SIGNAL N": "2"
+}

@@ -28,9 +28,10 @@ $utf8 = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $utf8
 [Console]::OutputEncoding = $utf8
 
-$itemsDir = Join-Path $PSScriptRoot $ItemsDir
+$itemsName = $ItemsDir
+$itemsDir = Join-Path $PSScriptRoot $itemsName
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$resDir = Join-Path $PSScriptRoot "results\$($ItemsDir)_$($Model)_$($Effort)_$stamp"
+$resDir = Join-Path $PSScriptRoot "results\$($itemsName)_$($Model)_$($Effort)_$stamp"
 New-Item -ItemType Directory -Force -Path $resDir | Out-Null
 
 $mainHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }

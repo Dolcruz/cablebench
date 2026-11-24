@@ -1,0 +1,4 @@
+﻿{"type":"thread.started","thread_id":"01a20d0c-dfc4-7942-8522-a6d1f0f773a5"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\n  \"YARD A\": \"5\",\n  \"JUNCTION\": \"3\",\n  \"PLATFORM\": \"4\",\n  \"DEPOT\": \"1\",\n  \"SIGNAL N\": \"2\"\n}"}}
+{"type":"turn.completed","usage":{"input_tokens":14677,"cached_input_tokens":10368,"cache_write_input_tokens":0,"output_tokens":300,"reasoning_output_tokens":250}}
