@@ -68,3 +68,80 @@ pitch the router did not finish within 45 minutes on 2 CPU cores.
   result. Fixed: run folders, CODEX_HOMEs and the image now get random neutral
   names (`w_<random>`, `puzzle.png`), and `PuzzleConfig.seed_salt` lets public sets
   use a secret salt.
+
+## Run 3: items_x, gpt-6.2-sol, effort high (2026-11-24)
+
+Five 50-cable puzzles (a/b/c: calm + 4 bundles + 5 loose pieces, d/e: hard + 2 bundles + 5 loose) and one
+calm 80-cable puzzle. Correct / wrong / abstained (null) per cable, scored with the new `score.py`:
+
+| item | old "toolless" | forbidden | code |
+|---|---|---|---|
+| 50 a | 42 / 8 / 0 | 7 / 43 / 0 | 35 / 15 / 0 |
+| 50 b | 13 / 2 / 35 | 7 / 43 / 0 | 6 / 44 / 0 |
+| 50 c | 22 / 28 / 0 | 2 / 27 / 21 | 0 / 2 / 48 |
+| 50 d | 3 / 2 / 45 | 1 / 6 / 43 | 10 / 40 / 0 |
+| 50 e | 19 / 31 / 0 | 3 / 47 / 0 | 22 / 28 / 0 |
+| 80 a | 51 / 29 / 0 | 0 / 2 / 78 | 29 / 51 / 0 |
+
+Every abstention in run 3 is an explicit `null` in otherwise complete JSON. Rules and the LLM judge
+(gpt-6-luna, effort low) agree on all six runs with abstentions: `honest_unknown`. Two of them were
+checked by hand (80 a forbidden: 78 null, only H and L answered; 50 d old toolless: the model wrote
+"Some crossings still give conflicting traces" and then left 45 labels null). The "Reconnecting... 5/5"
+events in those runs are the WebSocket-to-HTTPS fallback at the start; every run still completed its turn.
+The old scorer counted null as wrong; the correct counts above are unchanged.
+
+## Measurement problems found on 2026-11-25 (affect runs 1 to 3)
+
+**Old "toolless" was a JavaScript code mode, not pure vision.** The model catalog of codex-cli 0.171/0.172
+sets `tool_mode = "code_mode_only"` for gpt-6.2-sol. With `shell_tool = false` the model still had a
+JavaScript `exec` cell (V8 isolate, no file system, no network) with nested tools (`view_image`,
+`apply_patch`, MCP resource tools, clock) plus sub-agent tools (`spawn_agent`, ...). In the two old
+toolless rollouts that survived (80 a: 75 `exec` cells, 50 c: 92), the model called `view_image` once or
+twice to get the PNG as a base64 data URL, decoded it in JavaScript and ran its own pixel-level tracing
+(ridge following, flow, coverage). That is where the 3 to 12 million input tokens came from. It was not a
+`view_image` loop. Only these two runs have full rollouts; for the other old toolless runs the token
+counts point the same way but the calls cannot be shown anymore. Old "toolless" is therefore best read as
+**code without shell** (labelled `js_noshell` in the new score files), not as `look`.
+
+**Skills and the user's home path were visible in every isolated run.** The developer prompt listed
+13 skills (9 host skills from `~/.agents/skills`, 4 Codex system skills) with the absolute path of the
+user's home. In 80 a toolless the model opened `verify-project/SKILL.md`. Run 3 started before the
+`[[skills.config]]` switch was committed.
+
+**Old "forbidden" was close to single-shot** (20k to 50k tokens, one request), but it had the same tool
+set as code; it is kept as the instruction-following mode.
+
+## New harness (`bench/run_bench.py`, 2026-11-25)
+
+Each run gets its own CODEX_HOME with a patched copy of the live model catalog (`model_catalog_json`)
+and switches off everything the mode does not need. Before a run starts, every mode is rendered with
+`codex debug prompt-input` and checked by `bench/probe_isolation.py`; the run aborts if the model would
+see more than intended. After each run the real rollout is analysed again (requests, tool calls,
+nested JavaScript tool calls, reasoning summaries, every file path the model touched).
+
+| mode | what the model sees (verified with probe and rollouts) |
+|---|---|
+| `single` | no tools at all, image attached once (3840x2160, `detail: original`), exactly one request |
+| `look` | only `view_image` (it takes a path only, so it can re-read the same full image, nothing else) |
+| `code` | native tool set minus sub-agents, image generation, goals, request_user_input, tool search: JS `exec` cell with `exec_command`, `view_image`, `apply_patch`; `puzzle.png` in the working folder |
+| `forbidden` | same tools and files as `code`, prompt forbids tools |
+
+In all modes: 0 skills, no AGENTS.md, no MCP servers, no user path in the prompt,
+`model_reasoning_summary = "detailed"` (summaries were empty in run 3).
+
+Control runs (railway hard set from run 2, all answers correct):
+
+| item | mode | requests | tool calls | input tokens | old toolless | old forbidden |
+|---|---|---:|---|---:|---:|---:|
+| 5 | single | 1 | none | 13,104 | 14,677 | 15,554 |
+| 5 | look / code / forbidden | 1 each | none | 7,834 / 10,934 / 10,936 | | |
+| 20 | single | 1 | none | 15,527 | 344,829 | 17,977 |
+| 20 | look | 2 | 1 view_image | 28,178 | | |
+| 40 | look | 2 | 1 view_image | 42,056 | 6,846,094 | 23,709 |
+
+Known gap: the sandbox lets `code`/`forbidden` read the whole disk. A `[permissions.filesystem] deny_read`
+entry had no visible effect, so instead every path in a tool call is audited and runs that touch the
+benchmark (repo, manifests, solution images, salt, traces, other run folders) are flagged `leak_suspect`.
+
+Full traces (rollouts, events, working folders) are kept in a private folder outside this repo; this
+repo only gets answers, sanitised per-run stats (`*.stats.json`) and the score files.

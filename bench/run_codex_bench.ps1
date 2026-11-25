@@ -1,3 +1,5 @@
+# SUPERSEDED by bench/run_bench.py (2026-11-25). Kept to document runs 1 to 3.
+# Its "toolless" mode still had a JavaScript code cell (catalog tool_mode = code_mode_only) and host skills.
 # Runs the cable puzzles in bench\items through the Codex CLI in isolated CODEX_HOMEs
 # (no custom instructions, no AGENTS.md, no MCP servers), scores the answers and
 # writes everything to bench\results\<model>_<effort>_<timestamp>\.

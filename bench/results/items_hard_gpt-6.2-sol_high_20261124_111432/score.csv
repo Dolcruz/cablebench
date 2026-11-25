@@ -1,0 +1,13 @@
+tag,id,mode,repeat,n_cables,n_crossings,theme,correct,wrong,abstain,total,accuracy,coverage,precision,abstain_rate,penalized,exact,json_status,explicit_null,missing_keys,duplicate_targets,invalid_labels,abstain_reason_rule,abstain_evidence,abstain_reason_judge,judge_note,seconds,timed_out,requests,tool_calls,shell_commands,view_image_calls,input_tokens,output_tokens,reasoning_tokens,reconnects,leak_suspect,prompt_variant
+railway_hard_n05_505_code_r1,railway_hard_n05_505,code,1,5,15,railway,5,0,0,5,1.0,1.0,1.0,0.0,1.0,True,ok,0,0,0,0,,,,,25.1,False,,0,0,0,15796,566,516,0,False,default
+railway_hard_n05_505_forbidden_r1,railway_hard_n05_505,forbidden,1,5,15,railway,5,0,0,5,1.0,1.0,1.0,0.0,1.0,True,ok,0,0,0,0,,,,,21.6,False,,0,0,0,15554,323,273,0,False,default
+railway_hard_n05_505_toolless_r1,railway_hard_n05_505,js_noshell,1,5,15,railway,5,0,0,5,1.0,1.0,1.0,0.0,1.0,True,ok,0,0,0,0,,,,,15,False,,0,0,0,14677,300,250,0,False,default
+railway_hard_n10_510_code_r1,railway_hard_n10_510,code,1,10,58,railway,10,0,0,10,1.0,1.0,1.0,0.0,1.0,True,ok,0,0,0,0,,,,,166.3,False,,17,17,0,116107,4588,3420,0,False,default
+railway_hard_n10_510_forbidden_r1,railway_hard_n10_510,forbidden,1,10,58,railway,10,0,0,10,1.0,1.0,1.0,0.0,1.0,True,ok,0,0,0,0,,,,,81.3,False,,0,0,0,15571,2952,2859,0,False,default
+railway_hard_n10_510_toolless_r1,railway_hard_n10_510,js_noshell,1,10,58,railway,8,2,0,10,0.8,1.0,0.8,0.0,0.6,False,ok,0,0,0,0,,,,,89.9,False,,0,0,0,14694,3717,3624,0,False,default
+railway_hard_n20_520_code_r1,railway_hard_n20_520,code,1,20,203,railway,18,2,0,20,0.9,1.0,0.9,0.0,0.8,False,ok,0,0,0,0,,,,,384.2,False,,9,9,0,509947,13269,9781,0,False,default
+railway_hard_n20_520_forbidden_r1,railway_hard_n20_520,forbidden,1,20,203,railway,16,4,0,20,0.8,1.0,0.8,0.0,0.6,False,ok,0,0,0,0,,,,,216.9,False,,0,0,0,17977,8897,8721,0,False,default
+railway_hard_n20_520_toolless_r1,railway_hard_n20_520,js_noshell,1,20,203,railway,20,0,0,20,1.0,1.0,1.0,0.0,1.0,True,ok,0,0,0,0,,,,,321.9,False,,0,0,0,344829,12755,9508,0,False,default
+railway_hard_n40_543_code_r1,railway_hard_n40_543,code,1,40,665,railway,40,0,0,40,1.0,1.0,1.0,0.0,1.0,True,ok,0,0,0,0,,,,,928.4,False,,32,32,0,4629863,30656,11347,0,False,default
+railway_hard_n40_543_forbidden_r1,railway_hard_n40_543,forbidden,1,40,665,railway,15,25,0,40,0.375,1.0,0.375,0.0,-0.25,False,ok,0,0,0,0,,,,,890,False,,0,0,0,23709,43325,42986,0,False,default
+railway_hard_n40_543_toolless_r1,railway_hard_n40_543,js_noshell,1,40,665,railway,38,2,0,40,0.95,1.0,0.95,0.0,0.9,False,ok,0,0,0,0,,,,,1648.8,False,,0,0,0,6846094,62500,34568,0,False,default

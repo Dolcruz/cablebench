@@ -40,11 +40,11 @@ def fit_camera(bounds, res, rng, tilt_deg=(4, 12), yaw_deg=2.0, lens=50, margin=
     return bl.camera(loc, (cx, cy, z0), lens=lens)
 
 
-def build(pz, theme, rng, color_mode="uniform", res=(1600, 900), samples=48, extras=True):
+def build(pz, theme, rng, color_mode="uniform", res=(1600, 900), samples=48, extras=True, label_scale=1.0):
     bl.reset()
     n = len(pz.cables)
     r = pz.config["cable_radius"]
-    ctx = dict(W=pz.W, H=pz.H, r=r, n=n, pitch=pz.config["pitch"], rng=rng)
+    ctx = dict(W=pz.W, H=pz.H, r=r, n=n, pitch=pz.config["pitch"], rng=rng, label_scale=label_scale)
     bounds = theme.build(pz, ctx)
     cols = cable_colors(theme, rng, n, color_mode)
     mats = {}

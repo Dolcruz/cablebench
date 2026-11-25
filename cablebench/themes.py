@@ -16,6 +16,12 @@ from . import bl
 # ----------------------------------------------------------------------------
 # shared material recipes
 # ----------------------------------------------------------------------------
+
+def LS(ctx):
+    """Size of labels and label furniture. 1.0 * min(pitch, 1) unless the generator asks for bigger labels
+    (ctx["label_scale"], used for >= 70 cables where 4K text would otherwise be ~8 px high)."""
+    return min(ctx["pitch"], 1.0) * ctx.get("label_scale", 1.0)
+
 def painted_wood(name, base, dark, scale=1.0):
     nt = bl.NT(name)
     tc = nt.texcoord()
@@ -387,7 +393,7 @@ class Bomb(Theme):
         paint = bl.simple_mat("paint", (0.85, 0.83, 0.75), rough=0.8)
         dark = bl.simple_mat("rubber_dark", (0.03, 0.03, 0.03), rough=0.5)
         chrome = bl.simple_mat("chrome", (0.6, 0.6, 0.62), rough=0.25, metal=1.0)
-        ts = 0.42 * min(pitch, 1.0)
+        ts = 0.42 * LS(ctx)
         for i, (x, y) in enumerate(pz.left_ports):
             bl.torus(f"eyelet_{i}", (x - 0.02, y, 0.06), 1.55 * r, 0.42 * r, mat=chrome)
             bl.cylinder(f"boot_{i}", (x - 0.06, y, r), 1.25 * r, 0.22, axis="X", mat=dark)
@@ -401,9 +407,10 @@ class Bomb(Theme):
         nut = worn_metal("nut", (0.25, 0.25, 0.26), rough=(0.25, 0.5))
         for j, (x, y) in enumerate(pz.right_ports):
             bl.cylinder(f"nut_{j}", (x - 0.04, y, r), 1.6 * r, 0.16, axis="X", mat=nut, verts=6, bevel=0.01)
-            bl.sphere(f"led_{j}", (x + 0.55, y, bh), 0.11 * min(pitch, 1.0) / 0.9,
+            bl.sphere(f"led_{j}", (x + 0.55, y, bh), 0.11 * LS(ctx) / 0.9,
                       mat=led_on if rng.random() < 0.5 else led_off, scale=(1, 1, 0.6))
-            bl.text(f"rl_{j}", pz.right_labels[j], (x + 1.15, y, bh), ts, mat=paint, extrude=0.002)
+            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.55 + 0.13 * LS(ctx) + 0.12, y, bh), ts, mat=paint, extrude=0.002,
+                    align="LEFT")
         tw = min(3.2, W * 0.3)
         bl.box("timer", (W + 1.6 - tw / 2, top + 1.0, 0.18), (tw, 1.3, 0.36),
                bl.simple_mat("timer_case", (0.02, 0.02, 0.02), 0.4), bevel=0.04)
@@ -454,7 +461,7 @@ class Railway(Theme):
         W, H, r, n, pitch, rng = ctx["W"], ctx["H"], ctx["r"], ctx["n"], ctx["pitch"], ctx["rng"]
         top = H / 2 + 0.6 * pitch
         bot = -H / 2 - 0.6 * pitch
-        ts = 0.3 * min(pitch, 1.0)
+        ts = 0.3 * LS(ctx)
         maxlen = max(len(s) for s in pz.left_labels)
         pw = max(1.0, 0.21 * maxlen * ts / 0.3 + 0.35)
         px = -1.45 - pw / 2
@@ -469,7 +476,7 @@ class Railway(Theme):
         engrave = bl.simple_mat("engrave", (0.01, 0.008, 0.005), rough=0.8)
         braid = braided_cable((0.85, 0.8, 0.62), stripe=(0.55, 0.5, 0.38), name="jumper_braid")
         for i, (x, y) in enumerate(pz.left_ports):
-            bl.box(f"plate_{i}", (px, y, 0.06), (pw, 0.52 * min(pitch, 1.0), 0.04), plate_m, bevel=0.015)
+            bl.box(f"plate_{i}", (px, y, 0.06), (pw, 0.52 * LS(ctx), 0.04), plate_m, bevel=0.015)
             bl.text(f"ll_{i}", pz.left_labels[i], (px, y, 0.082), ts, mat=engrave, extrude=0.004)
             bl.torus(f"ring_a_{i}", (-1.2, y, 0.06), 1.4 * r, 0.45 * r, mat=br)
             bl.torus(f"ring_b_{i}", (x - 0.05, y, 0.06), 1.5 * r, 0.5 * r, mat=br)
@@ -483,15 +490,17 @@ class Railway(Theme):
         knurl = brass("knurl", (0.55, 0.38, 0.18), rough=(0.35, 0.6))
         for j, (x, y) in enumerate(pz.right_ports):
             bl.cylinder(f"nut_{j}", (x - 0.02, y, r), 1.7 * r, 0.22, axis="X", mat=knurl, verts=16, bevel=0.01)
-            hub = (x + 0.85, y, 0.42)
+            pw = max(0.42, 0.2 * len(pz.right_labels[j]) + 0.06) * LS(ctx)
+            pcx = x + 0.19 + pw / 2
+            hub = (x + 0.19 + pw + 0.3, y, 0.42)
             bl.cylinder(f"hub_{j}", hub, 0.09, 0.06, mat=br)
             ang = rng.uniform(-0.35, 0.35)
-            fl = bl.box(f"flag_{j}", (0, 0, 0.43), (0.8, 0.22 * min(pitch, 1), 0.02),
+            fl = bl.box(f"flag_{j}", (0, 0, 0.43), (0.8, 0.22 * LS(ctx), 0.02),
                         red if rng.random() < 0.5 else cream, bevel=0.005)
             fl.rotation_euler[2] = ang
             fl.location = (hub[0] + 0.45 * math.cos(ang), y + 0.45 * math.sin(ang), 0.43)
-            bl.box(f"rplate_{j}", (x + 0.4, y, 0.41), (0.42 * min(pitch, 1), 0.42 * min(pitch, 1), 0.02), plate_m, bevel=0.01)
-            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.4, y, 0.422), 0.3 * min(pitch, 1.0), mat=engrave, extrude=0.003)
+            bl.box(f"rplate_{j}", (pcx, y, 0.41), (pw, 0.42 * LS(ctx), 0.02), plate_m, bevel=0.01)
+            bl.text(f"rl_{j}", pz.right_labels[j], (pcx, y, 0.422), 0.3 * LS(ctx), mat=engrave, extrude=0.003)
         for k, xx in enumerate((W * 0.33, W * 0.66)):
             for yy in (top + 0.35, bot - 0.35):
                 bl.box(f"brk_{k}_{yy:.1f}", (xx, yy, 0.05), (0.3, 0.5, 0.1), br, bevel=0.03)
@@ -554,7 +563,7 @@ class SciFi(Theme):
         icon = bl.simple_mat("icon", (0.25, 0.26, 0.28), rough=0.5)
         chrome = bl.simple_mat("chrome", (0.75, 0.75, 0.78), rough=0.15, metal=1.0)
         darkring = bl.simple_mat("darkring", (0.05, 0.05, 0.06), rough=0.3, metal=0.6)
-        bs = 0.72 * min(pitch, 1.0)
+        bs = 0.72 * LS(ctx)
         for i, (x, y) in enumerate(pz.left_ports):
             bl.box(f"btn_{i}", (-1.05, y, 0.12), (bs * 1.15, bs * 0.95, 0.16), white, bevel=0.06, segments=4)
             if pz.left_labels[i].isdigit():
@@ -570,10 +579,11 @@ class SciFi(Theme):
         tile = plastic("tile", (0.9, 0.9, 0.92), rough=0.15, coat=0.8)
         for j, (x, y) in enumerate(pz.right_ports):
             bl.cylinder(f"conn_{j}", (x - 0.02, y, r), 1.45 * r, 0.3, axis="X", mat=chrome, bevel=0.01)
-            bl.box(f"tile_{j}", (x + 0.9, y, 0.14), (0.5 * min(pitch, 1), 0.42 * min(pitch, 1), 0.08), tile, bevel=0.04)
-            bl.box(f"light_{j}", (x + 0.9, y, 0.18), (0.32 * min(pitch, 1), 0.26 * min(pitch, 1), 0.02),
+            bl.box(f"tile_{j}", (x + 0.9, y, 0.14), (0.5 * LS(ctx), 0.42 * LS(ctx), 0.08), tile, bevel=0.04)
+            bl.box(f"light_{j}", (x + 0.9, y, 0.18), (0.32 * LS(ctx), 0.26 * LS(ctx), 0.02),
                    cyan if rng.random() < 0.5 else red, bevel=0.01)
-            bl.text(f"rl_{j}", pz.right_labels[j], (x + 1.55, y, 0.05), 0.38 * min(pitch, 1.0), mat=numm, extrude=0.01)
+            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.9 + 0.25 * LS(ctx) + 0.14, y, 0.05), 0.38 * LS(ctx), mat=numm,
+                    extrude=0.01, align="LEFT")
         sx, sy = W + 3.35, top - 1.0
         if top - bot > 3.5:
             bl.box("screen", (sx, sy, 0.1), (1.6, 1.4, 0.14), bl.simple_mat("scr", (0.01, 0.015, 0.02), 0.2), bevel=0.15)
@@ -646,7 +656,7 @@ class Steampunk(Theme):
             for yy in (y0 + 0.12, y1 - 0.12):
                 bl.sphere(f"rivet_{xx:.1f}_{yy:.1f}", (xx, yy, 0.09), 0.08, mat=br, scale=(1, 1, 0.5))
         dark = bl.simple_mat("dk", (0.05, 0.04, 0.03), rough=0.6)
-        bs = 0.78 * min(pitch, 1.0)
+        bs = 0.78 * LS(ctx)
         for i, (x, y) in enumerate(pz.left_ports):
             bl.box(f"badge_{i}", (-1.2, y, 0.05), (bs, bs * 0.9, 0.06), br, bevel=0.05)
             bl.box(f"badge_in_{i}", (-1.2, y, 0.081), (bs * 0.8, bs * 0.72, 0.01), dark, bevel=0.02)
@@ -661,7 +671,7 @@ class Steampunk(Theme):
         glass.principled(**{"Base Color": (0.9, 0.9, 0.9), "Roughness": 0.03, "Transmission": 1.0})
         face = bl.simple_mat("gface", (0.85, 0.8, 0.68), rough=0.7)
         needle = bl.simple_mat("needle", (0.05, 0.05, 0.05), rough=0.4)
-        gr = 0.34 * min(pitch, 1.0)
+        gr = 0.34 * LS(ctx)
         for j, (x, y) in enumerate(pz.right_ports):
             bl.cylinder(f"rcol_{j}", (x - 0.05, y, r), 1.6 * r, 0.16, axis="X", mat=br, verts=8, bevel=0.01)
             gx = x + 1.35
@@ -670,9 +680,11 @@ class Steampunk(Theme):
             a = rng.uniform(-2.2, 2.2)
             nd = bl.box(f"needle_{j}", (gx + 0.35 * gr * math.cos(a), y + 0.35 * gr * math.sin(a), 0.235), (0.7 * gr, 0.03, 0.01), needle)
             nd.rotation_euler[2] = a
-            bl.box(f"rbadge_{j}", (x + 0.68, y, 0.05), (0.42 * min(pitch, 1), 0.46 * min(pitch, 1), 0.06), br, bevel=0.03)
-            bl.box(f"rbadge_in_{j}", (x + 0.68, y, 0.081), (0.34 * min(pitch, 1), 0.38 * min(pitch, 1), 0.01), dark, bevel=0.01)
-            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.68, y, 0.086), 0.3 * min(pitch, 1.0), mat=br, extrude=0.01)
+            bw = max(0.42, 0.2 * len(pz.right_labels[j]) + 0.06) * LS(ctx)
+            bcx = x + 0.47 + bw / 2
+            bl.box(f"rbadge_{j}", (bcx, y, 0.05), (bw, 0.46 * LS(ctx), 0.06), br, bevel=0.03)
+            bl.box(f"rbadge_in_{j}", (bcx, y, 0.081), (bw - 0.08 * LS(ctx), 0.38 * LS(ctx), 0.01), dark, bevel=0.01)
+            bl.text(f"rl_{j}", pz.right_labels[j], (bcx, y, 0.086), 0.3 * LS(ctx), mat=br, extrude=0.01)
         return (x0 + 0.05, x1 - 0.05, y0 + 0.05, y1 - 0.05)
 
     def extras(self, pz, ctx):
@@ -734,17 +746,17 @@ class Synth(Theme):
         chrome = bl.simple_mat("chrome", (0.8, 0.8, 0.8), rough=0.12, metal=1.0)
         blk = bl.simple_mat("blk", (0.02, 0.02, 0.02), rough=0.4)
         plugm = plastic("plugbody", (0.85, 0.7, 0.1), rough=0.4, coat=0.4)
-        ts = 0.62 * min(pitch, 1.0)
+        ts = 0.62 * LS(ctx)
         waves = self.use_waves and n <= len(WAVES)
         if waves:
             pz.left_labels[:] = [str(w) for w in rng.permutation(WAVES)[:n]]
         for i, (x, y) in enumerate(pz.left_ports):
             bl.box(f"tag_{i}", (-1.45, y, 0.06), (ts * 1.4, ts * 1.05, 0.06), cream, bevel=0.06, segments=4)
             if waves:
-                wave_icon(f"wave_{i}", pz.left_labels[i], (-1.45, y), ts * 0.62, 0.095, ink, rng, thick=0.022 * min(pitch, 1))
+                wave_icon(f"wave_{i}", pz.left_labels[i], (-1.45, y), ts * 0.62, 0.095, ink, rng, thick=0.022 * LS(ctx))
             else:
                 bl.text(f"ll_{i}", pz.left_labels[i], (-1.45, y, 0.09), ts * 0.55, mat=ink, extrude=0.005)
-            bl.cylinder(f"jack_{i}", (-0.62, y, 0.06), 0.2 * min(pitch, 1), 0.08, mat=chrome, verts=6, bevel=0.01)
+            bl.cylinder(f"jack_{i}", (-0.62, y, 0.06), 0.2 * LS(ctx), 0.08, mat=chrome, verts=6, bevel=0.01)
             bl.cylinder(f"plug_{i}", (-0.25, y, r), 1.55 * r, 0.5, axis="X", mat=plugm, bevel=0.02)
             bl.cylinder(f"plugtip_{i}", (-0.55, y, r), 0.6 * r, 0.14, axis="X", mat=chrome)
         rpanel = plastic("rpanel", (0.05, 0.2, 0.24), rough=0.5, coat=0.2)
@@ -752,7 +764,7 @@ class Synth(Theme):
         for j, (x, y) in enumerate(pz.right_ports):
             bl.cylinder(f"rjack_{j}", (x + 0.12, y, r), 1.5 * r, 0.28, axis="X", mat=chrome, verts=24, bevel=0.01)
             bl.cylinder(f"rplug_{j}", (x - 0.22, y, r), 1.5 * r, 0.42, axis="X", mat=plugm, bevel=0.02)
-            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.75, y, 0.04), 0.4 * min(pitch, 1.0), mat=cream, extrude=0.005)
+            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.42, y, 0.04), 0.4 * LS(ctx), mat=cream, extrude=0.005, align="LEFT")
         meter = bl.emissive("meter", (1.0, 0.7, 0.3), 1.2)
         needle = bl.simple_mat("needle", (0.05, 0.05, 0.05), rough=0.4)
         if top - bot > 3.0:
@@ -836,13 +848,15 @@ class Security(Theme):
         bl.box("lstrip", (-0.9, 0, 0.05), (1.1, top - bot + 0.3, 0.1), bl.simple_mat("strip_dark", (0.04, 0.04, 0.045), 0.5), bevel=0.03)
         bl.box("rstrip", (W + 0.9, 0, 0.05), (1.1, top - bot + 0.3, 0.1), steel, bevel=0.03)
         for i, (x, y) in enumerate(pz.left_ports):
-            bl.sphere(f"btn_{i}", (-1.15, y, 0.1), 0.14 * min(pitch, 1), mat=red, scale=(1, 1, 0.6))
-            bl.text(f"ll_{i}", pz.left_labels[i], (-0.75, y, 0.1), 0.3 * min(pitch, 1), mat=white, extrude=0.002)
+            bl.sphere(f"btn_{i}", (-1.15, y, 0.1), 0.14 * LS(ctx), mat=red, scale=(1, 1, 0.6))
+            bl.text(f"ll_{i}", pz.left_labels[i], (-0.75, y, 0.1), 0.3 * LS(ctx), mat=white, extrude=0.002)
             bl.box(f"term_{i}", (x - 0.2, y, r), (0.4, 2.6 * r, 2.2 * r), chrome, bevel=0.02)
         for j, (x, y) in enumerate(pz.right_ports):
             bl.box(f"rterm_{j}", (x + 0.2, y, r), (0.4, 2.6 * r, 2.2 * r), chrome, bevel=0.02)
-            bl.box(f"rtag_{j}", (x + 0.9, y, 0.12), (0.5 * min(pitch, 1), 0.5 * min(pitch, 1), 0.04), yel, bevel=0.03)
-            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.9, y, 0.142), 0.34 * min(pitch, 1), mat=ink, extrude=0.002)
+            tw_ = max(0.5, 0.22 * len(pz.right_labels[j]) + 0.08) * LS(ctx)
+            tcx = x + 0.65 + tw_ / 2
+            bl.box(f"rtag_{j}", (tcx, y, 0.12), (tw_, 0.5 * LS(ctx), 0.04), yel, bevel=0.03)
+            bl.text(f"rl_{j}", pz.right_labels[j], (tcx, y, 0.142), 0.34 * LS(ctx), mat=ink, extrude=0.002)
         bl.text("title", "SECURITY SYSTEM", ((x0 + x1) / 2, y1 - 0.42, 0.0), 0.36,
                 mat=bl.simple_mat("tt", (0.15, 0.15, 0.16), 0.5), extrude=0.01)
         return (x0 + 0.05, x1 - 0.05, y0 + 0.05, y1 - 0.05)

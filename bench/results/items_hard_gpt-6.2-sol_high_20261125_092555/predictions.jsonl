@@ -1,0 +1,4 @@
+{"id": "railway_hard_n05_505", "mode": "code", "repeat": 1, "answer": "{\n  \"YARD A\": \"5\",\n  \"JUNCTION\": \"3\",\n  \"PLATFORM\": \"4\",\n  \"DEPOT\": \"1\",\n  \"SIGNAL N\": \"2\"\n}"}
+{"id": "railway_hard_n05_505", "mode": "forbidden", "repeat": 1, "answer": "{\n  \"YARD A\": \"5\",\n  \"JUNCTION\": \"3\",\n  \"PLATFORM\": \"4\",\n  \"DEPOT\": \"1\",\n  \"SIGNAL N\": \"2\"\n}"}
+{"id": "railway_hard_n05_505", "mode": "look", "repeat": 1, "answer": "{\n  \"YARD A\": \"5\",\n  \"JUNCTION\": \"3\",\n  \"PLATFORM\": \"4\",\n  \"DEPOT\": \"1\",\n  \"SIGNAL N\": \"2\"\n}"}
+{"id": "railway_hard_n05_505", "mode": "single", "repeat": 1, "answer": "{\n  \"YARD A\": \"5\",\n  \"JUNCTION\": \"3\",\n  \"PLATFORM\": \"4\",\n  \"DEPOT\": \"1\",\n  \"SIGNAL N\": \"2\"\n}"}

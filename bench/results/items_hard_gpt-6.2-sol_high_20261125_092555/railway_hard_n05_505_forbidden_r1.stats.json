@@ -1,0 +1,45 @@
+{
+ "id": "railway_hard_n05_505",
+ "mode": "forbidden",
+ "repeat": 1,
+ "n_cables": 5,
+ "seconds": null,
+ "timed_out": null,
+ "exit_code": null,
+ "prompt_variant": "default",
+ "visible_tools": [
+  "functions.exec",
+  "functions.wait"
+ ],
+ "visible_nested": [
+  "apply_patch",
+  "exec_command",
+  "list_mcp_resource_templates",
+  "list_mcp_resources",
+  "read_mcp_resource",
+  "view_image",
+  "write_stdin"
+ ],
+ "visible_skills": 0,
+ "requests": 1,
+ "tool_calls": {},
+ "nested_calls": {},
+ "reasoning_items": 1,
+ "reasoning_with_summary": 1,
+ "input_tokens": 10936,
+ "cached_input_tokens": 0,
+ "output_tokens": 536,
+ "reasoning_tokens": 486,
+ "summary_setting": "none",
+ "outside_paths": [],
+ "leak_suspect": [],
+ "reconnects": 0,
+ "errors": [
+  "`[features].multi_agent` is deprecated. It still controls the V1 fallback. `[agents].enabled = false` disables subagent tools even when the model selects a subagent version, unless `[features].multi_a",
+  "`[features].multi_agent` is deprecated. It still controls the V1 fallback. `[agents].enabled = false` disables subagent tools even when the model selects a subagent version, unless `[features].multi_a",
+  "Under-development features enabled: skip_host_skill_discovery. Under-development features are incomplete and may behave unpredictably. To suppress this warning, set `suppress_unstable_features_warning",
+  "Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."
+ ],
+ "turn_failed": false,
+ "turn_completed": true
+}

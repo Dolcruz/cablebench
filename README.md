@@ -81,30 +81,43 @@ score.py               scoring
 
 ## Codex benchmark (bench/)
 
-`bench/items/` holds a fixed set (bomb theme, same cable colour) with 5, 10, 20
-and 40 cables. `bench/run_codex_bench.ps1` sends each image through
-`codex exec` in isolated `CODEX_HOME`s (only `auth.json` is copied; no
-AGENTS.md, no custom instructions, no MCP servers, fresh empty working directory
-outside any git repo) in three modes:
+`bench/run_bench.py` sends each image through `codex exec`, one isolated `CODEX_HOME` per run
+(only `auth.json` is copied, fresh empty working folder outside any git repo, neutral random names).
+Each home gets a patched copy of the live model catalog (`model_catalog_json`) and a config that
+switches off what the mode does not need. Before anything starts, every mode is rendered with
+`codex debug prompt-input` and checked by `bench/probe_isolation.py`; the run aborts if the model would
+see more than intended. Modes:
 
-* `toolless`: `[features] shell_tool = false`, web search and apps off, read-only
-  sandbox. The model only sees the attached image.
-* `forbidden`: shell on (read-only sandbox, the image also lies in the working
-  directory), but the prompt forbids code and opening files. Measures whether the
-  model follows the instruction (`commands_run` > 0 means it did not).
-* `code`: shell on, workspace-write sandbox, the image is also `puzzle.png` in the
-  working directory and the prompt allows analysing it with code.
+* `single`: no tools at all, the image is attached once. Exactly one model request.
+* `look`: only `view_image` (it takes a path, so the model can re-read the attached image).
+* `code`: the model's native tools minus sub-agents, image generation, goals and skills
+  (JavaScript `exec` cell with shell, `view_image`, `apply_patch`); `puzzle.png` in the working folder.
+* `forbidden`: same tools and files as `code`, but the prompt forbids using them. Measures whether the
+  model follows the instruction (tool calls despite the ban), not what the tools add.
 
-Answers, raw events, timing, token counts and the number of shell commands are
-written to `bench/results/<model>_<effort>_<timestamp>/`.
+In every mode: no skills, no AGENTS.md, no MCP servers, reasoning summaries on.
+`--abstain-prompt` adds a sentence that explicitly allows `null` for cables the model cannot determine.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File bench\run_codex_bench.ps1 -Model gpt-6.2-sol -Effort high -Mode all
+python bench/run_bench.py --items-dir items_x --modes single,code,forbidden --timeout-min 120
+python bench/run_bench.py --items-dir items_x --resume bench/results/<run> --recover   # finish crashed runs
 ```
 
-The 40-cable puzzle was routed with slightly relaxed limits (min crossing angle
-22 deg, clearance 2.4 r, crossing spacing 3.0 r, fewer waypoints); the strict
-defaults did not converge in reasonable time on 2 CPU cores.
+The repo results folder gets answers, sanitised per-run stats and the score files. Full traces
+(rollouts with every tool call and reasoning summary, events, a zip of the working folder) go to a
+private folder outside the repo (`%USERPROFILE%/cablebench-traces`).
+
+`score.py` scores every cable as correct, wrong or abstained and gives each run with abstentions a
+reason: `honest_unknown`, `broken_output`, `technical` or `refusal` (rules, then optionally an LLM judge
+with `--judge gpt-6-luna`). Metrics: accuracy, coverage, precision on answered cables, abstain rate and
+`penalized = (correct - wrong) / n`.
+
+`bench/make_grid.py` builds larger sets (cable count x difficulty level, k items per cell) in two
+phases, `route` (CPU, parallel, retries on a new seed) and `render` (Blender, GPU), with a secret salt
+kept outside the repo. Sets with solutions are written outside the repo (`%USERPROFILE%/cablebench-data`).
+
+Runs 1 to 3 used the older `bench/run_codex_bench.ps1`; its "toolless" mode was not tool-free (see
+`bench/RESULTS.md`).
 
 `bench/render_gpu.ps1` sets up a local venv with `bpy` and renders on the GPU
 (`CABLEBENCH_DEVICE=GPU`, tries OptiX, then CUDA/HIP/Metal/oneAPI).
