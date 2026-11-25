@@ -150,7 +150,7 @@ repo only gets answers, sanitised per-run stats (`*.stats.json`) and the score f
 
 ## Router fix for bundles (2026-11-25)
 
-Calm puzzles with 4 bundles failed in almost every routing attempt (0 of 18 for 50+ cables on the first
+Calm puzzles with 4 or 5 bundles failed in every routing attempt (18 of 18 for 50, 70 and 100 cables on the first
 pilot pass). The cause was a sign error in `_plan_bundles`: members are sorted top first, but the lane
 offset put the top member on the bottom lane, so every pair of siblings had to cross twice while entering
 and leaving their shared corridor. Fixes: lanes follow the port order; members are chosen among cables
