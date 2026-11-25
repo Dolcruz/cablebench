@@ -518,7 +518,9 @@ class Railway(Theme):
     def lights(self, bounds, ctx):
         cx, cy, s, k = self.light_scale(bounds)
         x0, x1, y0, y1 = bounds
-        bl.point_light("lamp", (x0 + 0.1 * s, y1 + 0.05 * s, 0.35 * s), 9000 * k, (1.0, 0.72, 0.42), radius=0.05 * s)
+        # the warm lamp hangs over the cable field, not over the name plates: directly above the
+        # top-left plates its hot spot washed out the first labels on large boards
+        bl.point_light("lamp", (x0 + 0.32 * s, y1 + 0.05 * s, 0.4 * s), 9000 * k, (1.0, 0.72, 0.42), radius=0.05 * s)
         bl.area_light("window", (x1 + 0.2 * s, y1 + 0.4 * s, 0.8 * s), (cx, cy, 0), 600 * k, 0.8 * s, (0.55, 0.68, 1.0))
         bl.area_light("fill", (cx, y0 - 0.5 * s, 0.8 * s), (cx, cy, 0), 150 * k, 0.8 * s, (0.6, 0.7, 0.9))
         backdrop(bounds, (0.03, 0.035, 0.045))
@@ -560,14 +562,14 @@ class SciFi(Theme):
         nz = inner.noise(tc.outputs["Object"], scale=300, detail=2)
         inner.principled(**{"Base Color": (0.035, 0.037, 0.04), "Roughness": 0.75, "Normal": inner.bump(nz.outputs["Fac"], 0.2)})
         bl.box("inner", (W / 2 - 0.1, 0, 0.0), (W + 0.9, top - bot + 0.6, 0.12), inner.mat, bevel=0.06, segments=4)
-        icon = bl.simple_mat("icon", (0.25, 0.26, 0.28), rough=0.5)
+        icon = bl.simple_mat("icon", (0.05, 0.055, 0.06), rough=0.6)   # dark: grey glyphs on white buttons were faint under the key light
         chrome = bl.simple_mat("chrome", (0.75, 0.75, 0.78), rough=0.15, metal=1.0)
         darkring = bl.simple_mat("darkring", (0.05, 0.05, 0.06), rough=0.3, metal=0.6)
         bs = 0.72 * LS(ctx)
         for i, (x, y) in enumerate(pz.left_ports):
             bl.box(f"btn_{i}", (-1.05, y, 0.12), (bs * 1.15, bs * 0.95, 0.16), white, bevel=0.06, segments=4)
             if pz.left_labels[i].isdigit():
-                bl.text(f"ll_{i}", pz.left_labels[i], (-1.05, y, 0.2), bs * 0.45, mat=icon, extrude=0.01)
+                bl.text(f"ll_{i}", pz.left_labels[i], (-1.05, y, 0.212), bs * 0.45, mat=icon, extrude=0.006)   # fully above the button top (0.20)
             else:
                 symbol_icon(f"sym_{i}", pz.left_labels[i], (-1.05, y), bs * 0.5, 0.195, 0.215, icon)
             bl.cylinder(f"sock_{i}", (x - 0.12, y, r), 1.5 * r, 0.3, axis="X", mat=darkring, bevel=0.01)
