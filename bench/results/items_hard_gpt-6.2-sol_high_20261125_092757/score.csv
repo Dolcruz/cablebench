@@ -1,0 +1,5 @@
+tag,id,mode,repeat,n_cables,n_crossings,theme,correct,wrong,abstain,total,accuracy,coverage,precision,abstain_rate,penalized,exact,json_status,explicit_null,missing_keys,duplicate_targets,invalid_labels,abstain_reason_rule,abstain_evidence,abstain_reason_judge,judge_note,seconds,timed_out,requests,tool_calls,shell_commands,view_image_calls,input_tokens,output_tokens,reasoning_tokens,reconnects,leak_suspect,prompt_variant
+railway_hard_n20_520_look_r1,railway_hard_n20_520,look,1,20,203,railway,16,4,0,20,0.8,1.0,0.8,0.0,0.6,False,ok,0,0,0,0,,,,,184.1,False,2,1,0,1,28178,7373,7128,0,False,default
+railway_hard_n20_520_single_r1,railway_hard_n20_520,single,1,20,203,railway,18,2,0,20,0.9,1.0,0.9,0.0,0.8,False,ok,0,0,0,0,,,,,177.4,False,1,0,0,0,15527,7779,7603,0,False,default
+railway_hard_n40_543_look_r1,railway_hard_n40_543,look,1,40,665,railway,23,17,0,40,0.575,1.0,0.575,0.0,0.15,False,ok,0,0,0,0,,,,,663.0,False,2,1,0,1,42056,28576,28142,0,False,default
+railway_hard_n40_543_single_r1,railway_hard_n40_543,single,1,40,665,railway,10,30,0,40,0.25,1.0,0.25,0.0,-0.5,False,ok,0,0,0,0,,,,,1338.1,False,1,0,0,0,21259,54915,54551,0,False,default

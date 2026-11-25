@@ -129,15 +129,17 @@ nested JavaScript tool calls, reasoning summaries, every file path the model tou
 In all modes: 0 skills, no AGENTS.md, no MCP servers, no user path in the prompt,
 `model_reasoning_summary = "detailed"` (summaries were empty in run 3).
 
-Control runs (railway hard set from run 2, all answers correct):
+Control runs on the railway hard set from run 2 (correct cables, requests, tool calls, input tokens):
 
-| item | mode | requests | tool calls | input tokens | old toolless | old forbidden |
-|---|---|---:|---|---:|---:|---:|
-| 5 | single | 1 | none | 13,104 | 14,677 | 15,554 |
-| 5 | look / code / forbidden | 1 each | none | 7,834 / 10,934 / 10,936 | | |
-| 20 | single | 1 | none | 15,527 | 344,829 | 17,977 |
-| 20 | look | 2 | 1 view_image | 28,178 | | |
-| 40 | look | 2 | 1 view_image | 42,056 | 6,846,094 | 23,709 |
+| item | single | look | old "toolless" (JS code) | old forbidden |
+|---|---|---|---|---|
+| 5 | 5/5, 1 req, none, 13,104 | 5/5, 1 req, none, 7,834 | 5/5, 14,677 | 5/5, 15,554 |
+| 20 | 18/20, 1 req, none, 15,527 | 16/20, 2 req, 1 view_image, 28,178 | 20/20, 344,829 | 16/20, 17,977 |
+| 40 | **10/40**, 1 req, none, 21,259 (22 min) | 23/40, 2 req, 1 view_image, 42,056 | 38/40, 6,846,094 | 15/40, 23,709 |
+
+`code` and `forbidden` on the 5-cable item: 5/5 each, 1 request, no tool calls. The 40-cable result is the
+clearest sign of the old measurement error: true single-shot vision gets 10/40 where the old "toolless"
+mode, which was writing its own JavaScript image processing, got 38/40.
 
 Known gap: the sandbox lets `code`/`forbidden` read the whole disk. A `[permissions.filesystem] deny_read`
 entry had no visible effect, so instead every path in a tool call is audited and runs that touch the

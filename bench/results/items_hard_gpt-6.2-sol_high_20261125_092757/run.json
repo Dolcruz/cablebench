@@ -1,0 +1,48 @@
+{
+ "model": "gpt-6.2-sol",
+ "effort": "high",
+ "modes": [
+  "single",
+  "look"
+ ],
+ "repeats": 1,
+ "codex_version": "codex-cli 0.172.0",
+ "started": "20261125_092757",
+ "items_dir": "items_hard",
+ "prompt_variant": "default",
+ "tails": {
+  "single": "\n\nLook at the attached image and answer from the image alone.",
+  "look": "\n\nLook at the attached image and answer from the image alone.",
+  "forbidden": "\n\nThe same image is also saved as puzzle.png in the current working directory. Do not run any shell commands, scripts or code, and do not open any files. Look at the attached image and answer from the image alone.",
+  "code": "\n\nThe same image is also saved as puzzle.png in the current working directory. You may write and run code (for example Python) to analyse it if that helps. Do not look for or open any other files."
+ },
+ "abstain_clause": null,
+ "isolation_gate": {
+  "single": {
+   "ok": true,
+   "tools": [],
+   "nested": [],
+   "skills": [],
+   "leaks": false
+  },
+  "look": {
+   "ok": true,
+   "tools": [
+    "functions.view_image"
+   ],
+   "nested": [],
+   "skills": [],
+   "leaks": false
+  }
+ },
+ "native_tool_mode": "code_mode_only",
+ "native_experimental_tools": [
+  "request_user_input_async",
+  "send_message_to_user_async",
+  "clock",
+  "literature_search_query",
+  "multi_agent_v2_in_code_mode"
+ ],
+ "native_multi_agent": "v2",
+ "catalog_sha256": "a126c24404414230"
+}

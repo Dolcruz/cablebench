@@ -1,0 +1,22 @@
+{
+  "YARD A": "4",
+  "JUNCTION": "2",
+  "PLATFORM": "19",
+  "DEPOT": "3",
+  "SIGNAL N": "7",
+  "SIGNAL S": "14",
+  "SIDING": "5",
+  "YARD B": "12",
+  "BRIDGE": "6",
+  "TUNNEL": "17",
+  "CROSSING": "9",
+  "TURNTABLE": "20",
+  "GOODS": "10",
+  "SHED": "11",
+  "LOOP": "15",
+  "SPUR": "13",
+  "HARBOUR": "1",
+  "MILL": "16",
+  "QUARRY": "18",
+  "WEST": "8"
+}

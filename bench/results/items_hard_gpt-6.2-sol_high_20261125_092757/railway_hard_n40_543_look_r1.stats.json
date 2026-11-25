@@ -1,0 +1,33 @@
+{
+ "id": "railway_hard_n40_543",
+ "mode": "look",
+ "repeat": 1,
+ "n_cables": 40,
+ "seconds": 663.0,
+ "timed_out": false,
+ "exit_code": 0,
+ "prompt_variant": "default",
+ "visible_tools": [
+  "functions.view_image"
+ ],
+ "visible_nested": [],
+ "visible_skills": 0,
+ "requests": 2,
+ "tool_calls": {
+  "view_image": 1
+ },
+ "nested_calls": {},
+ "reasoning_items": 56,
+ "reasoning_with_summary": 56,
+ "input_tokens": 42056,
+ "cached_input_tokens": 15744,
+ "output_tokens": 28576,
+ "reasoning_tokens": 28142,
+ "summary_setting": "none",
+ "outside_paths": [],
+ "leak_suspect": [],
+ "reconnects": 0,
+ "errors": [],
+ "turn_failed": false,
+ "turn_completed": true
+}
