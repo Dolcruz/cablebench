@@ -54,6 +54,9 @@ class PuzzleConfig:
     bundles: int = 0              # groups of cables that run side by side through a shared corridor
     bundle_size: tuple = (3, 4)
     bundle_spacing: float = 3.6   # centre distance inside a bundle, in r
+    bundle_gap: float = 2.0       # min free space between the corridors of two bundles, in port pitches
+    bundle_direct: float = 0.7    # chance that a bundle member's new route has no random waypoints outside the corridor
+    require_bundles: bool = False  # fail fast (before routing) if fewer than `bundles` corridors fit
     loose: int = 0                # distractor cable pieces that are not connected to any port
     relax_steps: int = 2          # a cable that cannot be routed may lower its own angle limit this many times...
     relax_deg: float = 4.0        # ...by this much each time, before the router starts ripping up other cables
@@ -135,6 +138,23 @@ def curvature(poly):
     ang = np.arccos(np.clip((u[1:] * u[:-1]).sum(1), -1, 1))
     ds = 0.5 * (ln[1:] + ln[:-1])
     return ang / ds
+
+
+def _seg_dist(a, b):
+    """Shortest distance between two 2D segments a=(p0, p1), b=(q0, q1)."""
+    def pt_seg(p, q0, q1):
+        v = q1 - q0
+        t = np.clip(np.dot(p - q0, v) / max(np.dot(v, v), 1e-12), 0, 1)
+        return float(np.linalg.norm(p - (q0 + t * v)))
+    r, q = a[1] - a[0], b[1] - b[0]
+    rxs = r[0] * q[1] - r[1] * q[0]
+    if abs(rxs) > 1e-12:
+        w = b[0] - a[0]
+        t = (w[0] * q[1] - w[1] * q[0]) / rxs
+        u = (w[0] * r[1] - w[1] * r[0]) / rxs
+        if 0 <= t <= 1 and 0 <= u <= 1:
+            return 0.0
+    return min(pt_seg(a[0], *b), pt_seg(a[1], *b), pt_seg(b[0], *a), pt_seg(b[1], *a))
 
 
 def _seg_x(p, r, q, s):
@@ -238,39 +258,72 @@ class Router:
         self.corr = {}            # cable -> locked corridor waypoints (bundles)
         self.relax = collections.Counter()
         self._plan_bundles()
+        if cfg.require_bundles and len(self.bundle_groups) < cfg.bundles:
+            raise RuntimeError(f"bundle plan incomplete: {len(self.bundle_groups)}/{cfg.bundles} corridors fit")
         self._rebuild()
 
     def _plan_bundles(self):
         cfg, rng, W = self.cfg, self.rng, self.W
         free = list(rng.permutation(self.n))
         self.bundle_groups = []
+        self._corr_segs = []
         for b in range(cfg.bundles):
             k = int(rng.integers(cfg.bundle_size[0], cfg.bundle_size[1] + 1))
             if len(free) < k:
                 break
-            # pick members whose order is the same on both sides, so they never have to cross each other
-            members = None
-            for _try in range(400):
-                cand = [int(x) for x in rng.choice(free, size=k, replace=False)]
-                cand.sort(key=lambda i: -self.ys[i])
-                right = [self.ys[self.perm[i]] for i in cand]
-                if all(right[q] > right[q + 1] for q in range(k - 1)):
-                    members = cand
+            placed = None
+            ym = {int(j): (self.ys[j] + self.ys[self.perm[j]]) / 2 for j in free}
+            for _group in range(40):
+                # members: same order on both sides (they never have to cross each other) and straight
+                # port-to-port lines close to each other in the middle of the field, so the corridor lies on
+                # their natural way and no member needs a hairpin
+                members = None
+                for _try in range(600):
+                    a_ = int(free[int(rng.integers(len(free)))])
+                    near = sorted((j for j in ym if j != a_), key=lambda j: abs(ym[j] - ym[a_]))[:max(3 * k, 8)]
+                    if len(near) < k - 1:
+                        break
+                    cand = [a_] + [int(x) for x in rng.choice(near, size=k - 1, replace=False)]
+                    cand.sort(key=lambda i: -self.ys[i])
+                    right = [self.ys[self.perm[i]] for i in cand]
+                    if all(right[q] > right[q + 1] for q in range(k - 1)):
+                        members = cand
+                        break
+                if members is None:
+                    continue
+                half = (k - 1) / 2 * cfg.bundle_spacing * self.r
+                # corridors of different bundles must not cross or touch (their members are locked)
+                slope = float(np.mean([(self.ys[self.perm[i]] - self.ys[i]) / W for i in members]))
+                for _try in range(30):
+                    th = float(np.clip(math.atan(slope) + math.radians(rng.uniform(-15, 15)),
+                                       -math.radians(40), math.radians(40)))
+                    d = np.array([math.cos(th), math.sin(th)])
+                    L = rng.uniform(0.08, 0.13) * W
+                    cx = rng.uniform(0.4 * W, 0.6 * W)
+                    lo, hi = self.ymin + L * abs(d[1]) + half + 1, self.ymax - L * abs(d[1]) - half - 1
+                    if lo >= hi:
+                        continue
+                    cy = float(np.mean([self.ys[i] + (self.ys[self.perm[i]] - self.ys[i]) * cx / W for i in members]))
+                    c = np.array([cx, float(np.clip(cy + rng.uniform(-1, 1) * cfg.pitch, lo, hi))])
+                    seg = (c - L * d, c + L * d)
+                    if all(_seg_dist(seg, s2) > half + h2 + cfg.bundle_gap * cfg.pitch for s2, h2 in self._corr_segs):
+                        placed = (members, half, d, L, c, seg)
+                        break
+                if placed:
                     break
-            if members is None:
-                break
+            if not placed:
+                continue   # no room for this bundle; the stats record how many bundles were actually laid
+            members, half, d, L, c, seg = placed
             for m_ in members:
                 free.remove(m_)
-            th = math.radians(rng.uniform(-30, 30))
-            d = np.array([math.cos(th), math.sin(th)])
+                ym.pop(m_, None)
+            self._corr_segs.append((seg, half))
             nrm = np.array([-d[1], d[0]])
-            L = rng.uniform(0.08, 0.13) * W
-            half = (k - 1) / 2 * cfg.bundle_spacing * self.r
-            c = np.array([rng.uniform(0.4 * W, 0.6 * W),
-                          rng.uniform(self.ymin + L * abs(d[1]) + half + 1, self.ymax - L * abs(d[1]) - half - 1)])
             base = np.array([c - L * d, c - 0.33 * L * d, c + 0.33 * L * d, c + L * d])
             for j, i in enumerate(members):
-                off = (j - (k - 1) / 2) * cfg.bundle_spacing * self.r
+                # members are sorted top (largest y) first, so the top member gets the top lane (+nrm side);
+                # the old sign put it on the bottom lane and every pair of siblings had to cross twice
+                off = ((k - 1) / 2 - j) * cfg.bundle_spacing * self.r
                 self.corr[i] = base + off * nrm
             self.bundle_groups.append(members)
 
@@ -285,6 +338,10 @@ class Router:
             t = np.linspace(-0.5, 0.5, 4)[:, None]
             nrm = np.array([-d[1], d[0]])
             return c + t * L * d + rng.normal(0, 0.08 * L, (4, 1)) * nrm
+        if i in self.corr and rng.random() < cfg.bundle_direct:
+            # bundle member: port -> corridor -> port without random detours. Members leave the corridor
+            # side by side, so independent random waypoints made siblings cross each other at flat angles.
+            return np.zeros((0, 2))
         k = rng.integers(cfg.waypoints[0], cfg.waypoints[1] + 1)
         xs = np.sort(rng.uniform(0.16 * W, 0.84 * W, k))
         for j in range(k):
@@ -544,12 +601,20 @@ class Router:
             if wp is None:
                 backtracks += 1
                 if backtracks > 6 * n or not self.placed:
-                    raise RuntimeError(f"could not route cable {i} (n={n}); relax parameters")
-                # bundle members sit in locked corridors and are never ripped up
-                cands = [c for c, _ in cr.most_common() if c in self.placed and c not in self.corr]
-                free = [c for c in self.placed if c not in self.corr]
+                    raise RuntimeError(f"could not route cable {i} (n={n}); relax parameters "
+                                       f"[backtracks={backtracks} placed={len(self.placed)}]")
+                # bundle members sit in locked corridors and are never ripped up by ordinary cables.
+                # While the bundles themselves are laid, a blocked member may rip up members of OTHER
+                # bundles (their corridor stays reserved, only the lead-in is re-routed); without this,
+                # two bundles whose lead-ins cross badly made every attempt fail after a few cables.
+                own = next((g for g in self.bundle_groups if i in g), ())
+                lockable = (lambda c: c in self.corr and (i not in self.corr or c in own))
+                cands = [c for c, _ in cr.most_common() if c in self.placed and not lockable(c)]
+                free = [c for c in self.placed if not lockable(c)]
                 if not cands and not free:
-                    raise RuntimeError(f"could not route cable {i} (n={n}); relax parameters")
+                    raise RuntimeError(f"could not route cable {i} (n={n}); relax parameters "
+                                       f"[blocked only by bundles: placed={len(self.placed)} bundle_member={i in self.corr} "
+                                       f"conflicts={[c for c, _ in cr.most_common(4)]}]")
                 victims = cands[:2] if cands else [free[self.rng.integers(len(free))]]
                 # ripped-up real cables go back in before any distractor pieces, so the
                 # loose pieces are always laid last and never box in a real cable
@@ -559,6 +624,10 @@ class Router:
                     self.cross.pop(v, None)
                     if v >= self.n:
                         continue  # a ripped distractor piece is simply dropped
+                    if v in self.corr:
+                        queue.insert(0, v)   # ripped bundle member: straight after the blocked cable
+                        first_loose += 1
+                        continue
                     queue.insert(first_loose, v)
                     first_loose += 1
                 for k in list(self.cross):

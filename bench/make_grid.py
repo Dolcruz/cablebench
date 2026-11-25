@@ -53,7 +53,10 @@ THEME_OVR = {
 
 
 def label_scale(n, big=1.4):
-    return 1.0 if n < 70 else big
+    """Labels grow with the board: 4K caps the image, so above ~50 ports the text would shrink below
+    ~13 px (railway numbers on dark plates were barely readable at 50). 1.4 was checked in all five themes
+    with 3-digit labels (bench/label_test.py)."""
+    return 1.0 if n < 50 else (1.2 if n < 70 else big)
 
 
 def auto_res(n, cap_h=2160):
@@ -94,6 +97,7 @@ def build_cfg(job, seed, salt):
     for k, v in PRESETS[lv["preset"]].items():
         setattr(cfg, k, v)
     cfg.bundles = lv["bundles"](n)
+    cfg.require_bundles = cfg.bundles > 0
     cfg.loose = lv["loose"](n)
     for k, v in THEME_OVR[job["theme"]].items():
         setattr(cfg, k, v)

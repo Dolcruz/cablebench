@@ -642,7 +642,10 @@ class Steampunk(Theme):
             pz.left_labels[:] = [str(i + 1) for i in range(n)]
         top = H / 2 + 0.6 * pitch
         bot = -H / 2 - 0.6 * pitch
-        x0, x1 = -2.2, W + 2.1
+        # right column: badge (grows with the label), then the gauge behind it, so the gauge never covers digits
+        bw_max = max(0.42, 0.2 * max(len(s) for s in pz.right_labels) + 0.06) * LS(ctx)
+        g_off = max(1.35, 0.47 + bw_max + 0.12 + 0.34 * LS(ctx))
+        x0, x1 = -2.2, W + max(2.1, g_off + 0.34 * LS(ctx) + 0.35)
         y0, y1 = bot - 0.8, top + 0.8
         panel = worn_metal("panel", (0.10, 0.13, 0.17), rough=(0.5, 0.8), metal=0.5, rust=(0.15, 0.32, 0.28), scale=0.7, rust_amt=0.55)
         bl.box("panel", ((x0 + x1) / 2, (y0 + y1) / 2, -0.1), (x1 - x0, y1 - y0, 0.2), panel, bevel=0.08)
@@ -674,7 +677,7 @@ class Steampunk(Theme):
         gr = 0.34 * LS(ctx)
         for j, (x, y) in enumerate(pz.right_ports):
             bl.cylinder(f"rcol_{j}", (x - 0.05, y, r), 1.6 * r, 0.16, axis="X", mat=br, verts=8, bevel=0.01)
-            gx = x + 1.35
+            gx = x + g_off
             bl.cylinder(f"gbez_{j}", (gx, y, 0.12), gr, 0.2, mat=br, bevel=0.02)
             bl.cylinder(f"gface_{j}", (gx, y, 0.225), gr * 0.85, 0.012, mat=face)
             a = rng.uniform(-2.2, 2.2)
@@ -764,7 +767,7 @@ class Synth(Theme):
         for j, (x, y) in enumerate(pz.right_ports):
             bl.cylinder(f"rjack_{j}", (x + 0.12, y, r), 1.5 * r, 0.28, axis="X", mat=chrome, verts=24, bevel=0.01)
             bl.cylinder(f"rplug_{j}", (x - 0.22, y, r), 1.5 * r, 0.42, axis="X", mat=plugm, bevel=0.02)
-            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.42, y, 0.04), 0.4 * LS(ctx), mat=cream, extrude=0.005, align="LEFT")
+            bl.text(f"rl_{j}", pz.right_labels[j], (x + 0.62, y, 0.04), 0.4 * LS(ctx), mat=cream, extrude=0.005, align="LEFT")
         meter = bl.emissive("meter", (1.0, 0.7, 0.3), 1.2)
         needle = bl.simple_mat("needle", (0.05, 0.05, 0.05), rough=0.4)
         if top - bot > 3.0:

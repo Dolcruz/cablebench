@@ -147,3 +147,16 @@ benchmark (repo, manifests, solution images, salt, traces, other run folders) ar
 
 Full traces (rollouts, events, working folders) are kept in a private folder outside this repo; this
 repo only gets answers, sanitised per-run stats (`*.stats.json`) and the score files.
+
+## Router fix for bundles (2026-11-25)
+
+Calm puzzles with 4 bundles failed in almost every routing attempt (0 of 18 for 50+ cables on the first
+pilot pass). The cause was a sign error in `_plan_bundles`: members are sorted top first, but the lane
+offset put the top member on the bottom lane, so every pair of siblings had to cross twice while entering
+and leaving their shared corridor. Fixes: lanes follow the port order; members are chosen among cables
+whose straight port-to-port lines run close together and the corridor follows their mean line;
+corridors of different bundles keep 2 port pitches apart; bundle members usually get no random detours
+outside the corridor; while bundles are laid, a blocked member may rip up members of other bundles;
+`require_bundles` makes an incomplete bundle plan fail in seconds so the grid generator retries on a new
+seed. After the fix 5 of 6 test attempts for a 50-cable bundle puzzle routed in 1 to 6 minutes. Sets
+generated before this change keep their images; only new seeds route differently.
