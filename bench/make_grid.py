@@ -13,10 +13,13 @@ manifest holds the solutions. Puzzle seeds are random per attempt and mixed with
 salt from %USERPROFILE%/.cablebench_salt (created on first use, never committed), so the
 public generator cannot rebuild an item even if a seed leaks.
 
-Routing failures (e.g. bundles blocking each other) and attempts over --attempt-min are
-retried with a new seed, up to --max-attempts per item. Every attempt is logged in jobs.jsonl.
+Routing has no time limit: an attempt runs until it succeeds or the router reports a dead end
+(e.g. bundles blocking each other); a dead end is retried with a new seed until the item is
+routed. Idle workers start extra attempts with other seeds for items still open, the first one
+to finish wins and its siblings are stopped. Every attempt is logged in jobs.jsonl.
 """
 import argparse
+import collections
 import json
 import multiprocessing as mp
 import os
@@ -112,9 +115,10 @@ def _attempt(job, seed, salt, out_pkl, err_file):
         cfg = build_cfg(job, seed, salt)
         t0 = time.time()
         pz = generate(cfg)
-        with open(out_pkl + ".tmp", "wb") as f:
+        tmp = f"{out_pkl}.{seed}.tmp"
+        with open(tmp, "wb") as f:
             pickle.dump(dict(job=job, seed=seed, puzzle=pz, route_s=round(time.time() - t0, 1)), f)
-        os.replace(out_pkl + ".tmp", out_pkl)
+        os.replace(tmp, out_pkl)
     except Exception as e:
         with open(err_file, "w") as f:
             f.write(f"{type(e).__name__}: {e}\n{traceback.format_exc()[-1500:]}")
@@ -127,52 +131,67 @@ def cmd_route(a):
     salt = get_salt()
     jobs = make_jobs(a)
     json.dump(dict(grid=a.grid, n=a.n, levels=a.levels, per_cell=a.per_cell, max_attempts=a.max_attempts,
-                   attempt_min=a.attempt_min, level_defs={k: dict(preset=v["preset"], pitch=v["pitch"],
+                   level_defs={k: dict(preset=v["preset"], pitch=v["pitch"],
                    bundles={n: v["bundles"](n) for n in BUNDLES}, loose={n: v["loose"](n) for n in BUNDLES})
                    for k, v in LEVELS.items()}, themes=THEME_CYCLE),
               open(os.path.join(gd, "grid.json"), "w"), indent=1)
     log = open(os.path.join(gd, "jobs.jsonl"), "a")
     todo = [j for j in jobs if not os.path.exists(os.path.join(pdir, j["id"] + ".pkl"))]
-    print(f"{len(jobs)} jobs, {len(todo)} to route, {a.workers} workers")
-    tries = {j["id"]: 0 for j in todo}
-    queue = list(sorted(todo, key=lambda j: -j["n"]))   # big ones first
-    live = {}
+    print(f"{len(jobs)} jobs, {len(todo)} to route, {a.workers} workers, no time limit", flush=True)
+    prev = collections.Counter()
+    if os.path.exists(os.path.join(gd, "jobs.jsonl")):
+        for l in open(os.path.join(gd, "jobs.jsonl")):
+            if l.strip():
+                prev[json.loads(l)["id"]] += 1
+    tries = {j["id"]: prev[j["id"]] for j in todo}
+    open_jobs = sorted(todo, key=lambda j: -j["n"])   # big ones first
+    gave_up = set()
+    live = {}   # attempt key -> (process, job, seed, start, out, err)
     t_start = time.time()
-    while queue or live:
-        while queue and len(live) < a.workers:
-            j = queue.pop(0)
+
+    def write(jid, att, status, dt, msg):
+        rec = dict(id=jid, attempt=att, status=status, seconds=round(dt, 1), msg=msg[:200],
+                   time=time.strftime("%Y-%m-%d %H:%M:%S"))   # seeds stay in the pickle only
+        log.write(json.dumps(rec) + "\n")
+        log.flush()
+        print(f"[{(time.time() - t_start) / 60:6.1f} min] {jid:22s} try {att} {status:8s} {dt:6.0f}s {msg[:80]}",
+              flush=True)
+
+    while open_jobs or live:
+        # fill free workers: the open job with the fewest running attempts goes next (big ones first)
+        while open_jobs and len(live) < a.workers:
+            running = collections.Counter(v[1]["id"] for v in live.values())
+            j = min(open_jobs, key=lambda j: running[j["id"]])
             tries[j["id"]] += 1
+            att = tries[j["id"]]
             seed = secrets.randbits(31)
             out = os.path.join(pdir, j["id"] + ".pkl")
-            err = os.path.join(pdir, f"{j['id']}.err{tries[j['id']]}")
+            err = os.path.join(pdir, f"{j['id']}.err{att}")
             p = mp.Process(target=_attempt, args=(j, seed, salt, out, err), daemon=True)
             p.start()
-            live[j["id"]] = (p, j, seed, time.time(), out, err)
+            live[(j["id"], att)] = (p, j, seed, time.time(), out, err)
         time.sleep(2)
-        for jid, (p, j, seed, t0, out, err) in list(live.items()):
-            dt = time.time() - t0
-            status = None
-            if not p.is_alive():
-                status = "ok" if os.path.exists(out) else ("error" if os.path.exists(err) else "died")
-            elif dt > a.attempt_min * 60:
-                p.kill()
-                p.join()
-                status = "timeout"
-            if status is None:
+        for key, (p, j, seed, t0, out, err) in list(live.items()):
+            if p.is_alive():
                 continue
-            del live[jid]
+            jid, att = key
+            del live[key]
+            dt = time.time() - t0
+            status = "ok" if os.path.exists(out) else ("error" if os.path.exists(err) else "died")
             msg = open(err).read().splitlines()[0] if os.path.exists(err) else ""
-            rec = dict(id=jid, attempt=tries[jid], status=status, seconds=round(dt, 1), msg=msg[:200],
-                       time=time.strftime("%Y-%m-%d %H:%M:%S"))   # seeds stay in the pickle only
-            log.write(json.dumps(rec) + "\n")
-            log.flush()
-            print(f"[{(time.time() - t_start) / 60:6.1f} min] {jid:22s} try {tries[jid]} {status:7s} {dt:6.0f}s {msg[:80]}",
-                  flush=True)
-            if status != "ok":
-                if tries[jid] < a.max_attempts:
-                    queue.insert(0, j)
-                else:
-                    print(f"GAVE UP {jid} after {tries[jid]} attempts", flush=True)
+            write(jid, att, status, dt, msg)
+            if status == "ok":
+                open_jobs = [o for o in open_jobs if o["id"] != jid]
+                for k2, v2 in list(live.items()):   # stop the sibling attempts of this item
+                    if k2[0] == jid:
+                        v2[0].kill()
+                        v2[0].join()
+                        del live[k2]
+                        write(jid, k2[1], "stopped", time.time() - v2[3], "another attempt finished first")
+            elif a.max_attempts and tries[jid] >= a.max_attempts and jid not in gave_up:
+                gave_up.add(jid)
+                open_jobs = [o for o in open_jobs if o["id"] != jid]
+                print(f"GAVE UP {jid} after {tries[jid]} attempts (--max-attempts)", flush=True)
     done = sum(os.path.exists(os.path.join(pdir, j["id"] + ".pkl")) for j in jobs)
     print(f"routed {done}/{len(jobs)} in {(time.time() - t_start) / 60:.1f} min")
 
@@ -266,8 +285,7 @@ def main():
     ap.add_argument("--levels", default="calm,bundles,hard")
     ap.add_argument("--per-cell", type=int, default=2)
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) - 4))
-    ap.add_argument("--max-attempts", type=int, default=4)
-    ap.add_argument("--attempt-min", type=float, default=60)
+    ap.add_argument("--max-attempts", type=int, default=0, help="0 = retry dead ends until routed")
     ap.add_argument("--samples", type=int, default=64)
     ap.add_argument("--device", default="GPU")
     ap.add_argument("--big-label-scale", type=float, default=1.4)
